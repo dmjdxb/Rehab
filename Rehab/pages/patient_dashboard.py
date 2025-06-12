@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 import os
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Patient Dashboard", layout="wide")
 
 st.title("📊 Patient Dashboard")
 st.markdown("Track patient progress over time with detailed analytics and visualizations.")
