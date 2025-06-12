@@ -809,6 +809,8 @@ with col1:
             # Analyze posture
             with st.spinner("🔍 Performing clinical analysis..."):
                 analysis = analyze_posture(image_array)
+                # Store in session state for display
+                st.session_state.current_analysis = analysis
             
             # Create annotated image
             annotated_image = create_annotated_image(image_array, analysis['landmarks'], analysis)
@@ -833,6 +835,8 @@ with col1:
             # Analyze posture
             with st.spinner("🔍 Performing clinical analysis..."):
                 analysis = analyze_posture(image_array)
+                # Store in session state for display
+                st.session_state.current_analysis = analysis
             
             # Create annotated image
             annotated_image = create_annotated_image(image_array, analysis['landmarks'], analysis)
@@ -961,10 +965,10 @@ with col1:
 
 # Display results
 with col2:
-    if 'analysis' in locals() or ('current_analysis' in st.session_state and analysis_mode == "Manual Landmark Placement"):
-        if analysis_mode == "Manual Landmark Placement" and 'current_analysis' in st.session_state:
-            analysis = st.session_state.current_analysis
-            
+    # Check if we have an analysis to display from session state
+    if 'current_analysis' in st.session_state and st.session_state.current_analysis is not None:
+        analysis = st.session_state.current_analysis
+        
         st.header("📊 Clinical Analysis")
         
         # Main score
