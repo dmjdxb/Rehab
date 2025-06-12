@@ -4,7 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import json
+from patient_session_manager import PatientSessionManager
 
+patient_id = PatientSessionManager.create_patient_selector()
+if patient_id:
+    patient = PatientSessionManager.get_current_patient()
+    # Your page code with patient context
 # Import Phase 2 modules
 try:
     from rts_testing import (
