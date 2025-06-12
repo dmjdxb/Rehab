@@ -1,3 +1,4 @@
+# Create the full MediaPipe-powered AI Clinical Assistant
 import streamlit as st
 import cv2
 import mediapipe as mp
@@ -24,9 +25,9 @@ def initialize_mediapipe():
 
 def calculate_angle(a, b, c):
     """Calculate angle between three points"""
-    a = np.array(a) # First point
-    b = np.array(b) # Middle point (vertex)
-    c = np.array(c) # End point
+    a = np.array(a)
+    b = np.array(b) 
+    c = np.array(c)
     
     radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
     angle = np.abs(radians*180.0/np.pi)
@@ -36,38 +37,24 @@ def calculate_angle(a, b, c):
         
     return angle
 
-def calculate_distance(point1, point2):
-    """Calculate distance between two points"""
-    return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
-
 def analyze_posture(landmarks, image_width, image_height):
-    """Comprehensive posture analysis from MediaPipe landmarks"""
+    """Advanced posture analysis using MediaPipe landmarks"""
     
-    # Convert normalized coordinates to pixel coordinates
     def get_landmark_coords(landmark_idx):
         landmark = landmarks[landmark_idx]
         return [landmark.x * image_width, landmark.y * image_height]
     
-    # Get key landmarks
     try:
-        # Head and neck
+        # Get key landmarks
         nose = get_landmark_coords(mp.solutions.pose.PoseLandmark.NOSE.value)
         left_ear = get_landmark_coords(mp.solutions.pose.PoseLandmark.LEFT_EAR.value)
         right_ear = get_landmark_coords(mp.solutions.pose.PoseLandmark.RIGHT_EAR.value)
-        
-        # Shoulders
         left_shoulder = get_landmark_coords(mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value)
         right_shoulder = get_landmark_coords(mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value)
-        
-        # Hips
         left_hip = get_landmark_coords(mp.solutions.pose.PoseLandmark.LEFT_HIP.value)
         right_hip = get_landmark_coords(mp.solutions.pose.PoseLandmark.RIGHT_HIP.value)
-        
-        # Knees
         left_knee = get_landmark_coords(mp.solutions.pose.PoseLandmark.LEFT_KNEE.value)
         right_knee = get_landmark_coords(mp.solutions.pose.PoseLandmark.RIGHT_KNEE.value)
-        
-        # Ankles
         left_ankle = get_landmark_coords(mp.solutions.pose.PoseLandmark.LEFT_ANKLE.value)
         right_ankle = get_landmark_coords(mp.solutions.pose.PoseLandmark.RIGHT_ANKLE.value)
         
@@ -78,11 +65,10 @@ def analyze_posture(landmarks, image_width, image_height):
     posture_analysis = {}
     
     # 1. Head Forward Posture Analysis
-    # Calculate head position relative to shoulders
     ear_center = [(left_ear[0] + right_ear[0])/2, (left_ear[1] + right_ear[1])/2]
     shoulder_center = [(left_shoulder[0] + right_shoulder[0])/2, (left_shoulder[1] + right_shoulder[1])/2]
     
-    # Head forward distance (horizontal offset)
+    # Calculate head forward distance
     head_forward_distance = abs(ear_center[0] - shoulder_center[0])
     head_forward_ratio = head_forward_distance / image_width
     
@@ -167,30 +153,25 @@ def analyze_posture(landmarks, image_width, image_height):
         posture_analysis['knee_color'] = "🟢"
     
     # 5. Overall Body Alignment
-    # Check if ear, shoulder, hip are vertically aligned (side view)
-    vertical_alignment_score = 4
-    
-    # Calculate vertical line deviations
     shoulder_hip_offset = abs(shoulder_center[0] - (left_hip[0] + right_hip[0])/2)
     alignment_ratio = shoulder_hip_offset / image_width
     
     if alignment_ratio > 0.06:
-        vertical_alignment_score = 1
         posture_analysis['alignment'] = "Poor overall alignment"
+        posture_analysis['alignment_score'] = 1
         posture_analysis['alignment_color'] = "🔴"
     elif alignment_ratio > 0.04:
-        vertical_alignment_score = 2
         posture_analysis['alignment'] = "Fair overall alignment"
+        posture_analysis['alignment_score'] = 2
         posture_analysis['alignment_color'] = "🟠"
     elif alignment_ratio > 0.02:
-        vertical_alignment_score = 3
         posture_analysis['alignment'] = "Good overall alignment"
+        posture_analysis['alignment_score'] = 3
         posture_analysis['alignment_color'] = "🟡"
     else:
         posture_analysis['alignment'] = "Excellent overall alignment"
+        posture_analysis['alignment_score'] = 4
         posture_analysis['alignment_color'] = "🟢"
-    
-    posture_analysis['alignment_score'] = vertical_alignment_score
     
     # Calculate total score
     total_score = (posture_analysis['head_score'] + 
@@ -228,85 +209,77 @@ def analyze_posture(landmarks, image_width, image_height):
     return posture_analysis
 
 def generate_exercise_recommendations(posture_analysis):
-    """Generate specific exercise recommendations based on posture analysis"""
+    """Generate targeted exercise recommendations"""
     recommendations = []
     
-    # Head forward posture recommendations
     if posture_analysis.get('head_score', 4) < 3:
         recommendations.extend([
-            "**Head & Neck:**",
+            "**🎯 Head & Neck Corrections:**",
             "• Chin tucks: 3 sets of 15 holds (5 seconds each)",
             "• Upper cervical strengthening exercises",
             "• Deep neck flexor strengthening",
             "• Suboccipital stretches: 3 x 30 seconds",
-            "• Computer ergonomics adjustment",
+            "• Computer ergonomics review",
             ""
         ])
     
-    # Shoulder asymmetry recommendations
     if posture_analysis.get('shoulder_score', 4) < 3:
         recommendations.extend([
-            "**Shoulders & Upper Back:**",
+            "**💪 Shoulder & Upper Back:**",
             "• Shoulder blade squeezes: 3 sets of 15",
             "• Wall slides: 2 sets of 12",
-            "• Doorway chest stretches: 3 x 30 seconds each arm",
+            "• Doorway chest stretches: 3 x 30 seconds",
             "• Thoracic spine extension exercises",
             "• Unilateral strengthening for weaker side",
             ""
         ])
     
-    # Hip asymmetry recommendations
     if posture_analysis.get('hip_score', 4) < 3:
         recommendations.extend([
-            "**Hips & Pelvis:**",
+            "**🔥 Hip & Pelvis Program:**",
             "• Hip flexor stretches: 3 x 30 seconds each side",
-            "• Glute strengthening: Bridges 3 sets of 15",
+            "• Glute bridges: 3 sets of 15",
             "• Clamshells: 2 sets of 12 each side",
             "• Pelvic tilts: 3 sets of 10",
             "• Single-leg stance: 3 x 30 seconds each leg",
             ""
         ])
     
-    # Knee alignment recommendations
     if posture_analysis.get('knee_score', 4) < 3:
         recommendations.extend([
-            "**Knee Alignment:**",
-            "• Quadriceps strengthening: Straight leg raises",
+            "**🦵 Knee Alignment:**",
+            "• Straight leg raises: 3 sets of 10 each leg",
             "• Hamstring stretches: 3 x 30 seconds",
-            "• IT band stretches and strengthening",
+            "• Quadriceps strengthening",
             "• Balance training exercises",
             ""
         ])
     
-    # Overall alignment recommendations
     if posture_analysis.get('alignment_score', 4) < 3:
         recommendations.extend([
-            "**Overall Alignment:**",
-            "• Core strengthening: Planks 3 x 30 seconds",
+            "**⚖️ Overall Alignment:**",
+            "• Planks: 3 x 30 seconds",
+            "• Core strengthening routine",
             "• Postural awareness training",
-            "• Movement breaks every 30 minutes",
-            "• Full-body stretching routine",
+            "• Full-body stretching program",
             ""
         ])
     
-    # If excellent posture, maintenance recommendations
     if not recommendations:
         recommendations = [
-            "**Maintenance Program:**",
-            "• Continue current excellent posture habits",
-            "• Regular movement breaks (every 30-60 minutes)",
-            "• Maintain strength and flexibility routine",
-            "• Periodic posture checks",
-            "• Ergonomic workspace evaluation"
+            "**✨ Maintenance Program:**",
+            "• Continue excellent posture habits",
+            "• Regular movement breaks every 30-60 minutes",
+            "• Maintain current strength and flexibility",
+            "• Periodic posture monitoring"
         ]
     
     return recommendations
 
 def save_analysis_data(analysis_data, patient_name="Unknown"):
-    """Save analysis data to CSV file"""
+    """Save analysis to CSV file"""
     filename = "posture_analysis_log.csv"
     
-    # Prepare data for saving
     save_data = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "patient": patient_name,
@@ -318,152 +291,156 @@ def save_analysis_data(analysis_data, patient_name="Unknown"):
         "knee_score": analysis_data.get('knee_score', 0),
         "alignment_score": analysis_data.get('alignment_score', 0),
         "overall_assessment": analysis_data.get('overall', ''),
-        "risk_level": analysis_data.get('risk_level', '')
+        "risk_level": analysis_data.get('risk_level', ''),
+        "analysis_type": "MediaPipe AI"
     }
     
-    # Create DataFrame
     df_new = pd.DataFrame([save_data])
     
-    # Append to existing file or create new
     if os.path.exists(filename):
         df_existing = pd.read_csv(filename)
         df_combined = pd.concat([df_existing, df_new], ignore_index=True)
     else:
         df_combined = df_new
     
-    # Save to CSV
     df_combined.to_csv(filename, index=False)
     return True
 
 # Main App
-st.title("🤖 AI Clinical Assistant - Advanced Visual Posture Analysis")
-st.markdown("### *Powered by MediaPipe AI • Real-time body landmark detection*")
-st.markdown("---")
+st.title("🤖 AI Clinical Assistant")
+st.markdown("### *Advanced Visual Posture Analysis powered by MediaPipe AI*")
 
 # Initialize MediaPipe
 try:
     mp_pose, mp_drawing, mp_drawing_styles = initialize_mediapipe()
-    st.success("✅ MediaPipe AI successfully loaded!")
+    st.success("✅ MediaPipe AI successfully initialized! (v0.10.9)")
 except Exception as e:
-    st.error(f"❌ Error loading MediaPipe: {str(e)}")
+    st.error(f"❌ Error initializing MediaPipe: {str(e)}")
     st.stop()
 
-# Sidebar controls
+st.markdown("---")
+
+# Sidebar
 with st.sidebar:
     st.header("🎯 Analysis Settings")
     
-    # Patient information
-    patient_name = st.text_input("Patient Name (optional)", value="Anonymous")
+    patient_name = st.text_input("Patient Name", value="Anonymous")
     
-    # Analysis mode
     analysis_mode = st.selectbox(
         "📸 Analysis Mode",
-        ["Upload Image", "Take Photo", "Live Analysis (Coming Soon)"]
+        ["Upload Image", "Take Photo"]
     )
     
-    # Detection confidence
     detection_confidence = st.slider(
         "🎯 Detection Confidence",
-        min_value=0.1,
-        max_value=1.0,
-        value=0.5,
-        step=0.1,
-        help="Higher values = more strict detection"
+        0.1, 1.0, 0.5, 0.1,
+        help="Higher = more strict detection"
     )
     
     st.markdown("---")
-    st.header("📋 Instructions")
+    st.header("📋 Photo Guidelines")
     st.markdown("""
-    **For best results:**
+    **For optimal AI analysis:**
     
-    📸 **Photo Setup:**
-    - Stand sideways to camera
-    - Full body visible
-    - Good lighting
-    - Neutral standing position
-    - Arms at sides
-    
-    👥 **Positioning:**
-    - 6-8 feet from camera
+    📸 **Camera Setup:**
+    - Side view positioning
+    - Full body visible  
+    - Bright, even lighting
     - Plain background
+    - 6-8 feet distance
+    
+    🧍 **Patient Positioning:**
+    - Natural standing pose
+    - Arms relaxed at sides
+    - Look straight ahead
     - Remove bulky clothing
-    - Stand naturally
+    """)
+    
+    st.markdown("---")
+    st.header("🔬 AI Features")
+    st.markdown("""
+    **MediaPipe Analysis:**
+    - 33-point body landmarks
+    - Precise angle measurements
+    - Real-time processing
+    - Professional accuracy
     """)
 
-# Main content area
+# Main content
 col1, col2 = st.columns([3, 2])
 
 with col1:
-    st.header("📷 Posture Analysis")
+    st.header("📷 Advanced Posture Analysis")
     
     if analysis_mode == "Upload Image":
         uploaded_file = st.file_uploader(
-            "Choose an image for posture analysis...", 
+            "Upload a side-view photo for AI posture analysis",
             type=['jpg', 'jpeg', 'png'],
-            help="Upload a side-view photo showing full body"
+            help="Best results with side-view, full-body photos"
         )
         
         if uploaded_file is not None:
-            # Load and process image
             image = Image.open(uploaded_file)
             image_array = np.array(image)
             image_height, image_width = image_array.shape[:2]
             
-            # Process with MediaPipe
+            # Process with MediaPipe AI
             with mp_pose.Pose(
                 static_image_mode=True,
                 model_complexity=2,
                 enable_segmentation=False,
-                min_detection_confidence=detection_confidence) as pose:
+                min_detection_confidence=detection_confidence
+            ) as pose:
                 
                 # Convert RGB to BGR for MediaPipe
                 results = pose.process(cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR))
                 
-                # Draw landmarks on image
+                # Create annotated image with AI landmarks
                 annotated_image = image_array.copy()
                 if results.pose_landmarks:
                     mp_drawing.draw_landmarks(
                         annotated_image,
                         results.pose_landmarks,
                         mp_pose.POSE_CONNECTIONS,
-                        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
+                        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+                    )
                 
-                # Display images
-                st.subheader("📊 Analysis Results")
-                
-                # Show original and annotated images side by side
+                # Display images side by side
                 img_col1, img_col2 = st.columns(2)
                 with img_col1:
-                    st.image(image, caption="Original Image", use_column_width=True)
+                    st.image(image, caption="📷 Original Photo", use_column_width=True)
                 with img_col2:
-                    st.image(annotated_image, caption="AI Analysis", use_column_width=True)
+                    st.image(annotated_image, caption="🤖 AI Landmark Detection", use_column_width=True)
                 
                 # Analyze posture if landmarks detected
                 if results.pose_landmarks:
-                    with st.spinner("🤖 Analyzing posture..."):
+                    with st.spinner("🤖 AI analyzing posture..."):
                         posture_analysis = analyze_posture(
-                            results.pose_landmarks.landmark, 
-                            image_width, 
+                            results.pose_landmarks.landmark,
+                            image_width,
                             image_height
                         )
                     
                     if "error" not in posture_analysis:
-                        # Display results in col2
+                        # Display results in sidebar column
                         with col2:
-                            st.header("📊 Detailed Analysis")
+                            st.header("📊 AI Analysis Results")
                             
-                            # Overall score with large display
-                            score_percentage = posture_analysis['percentage']
+                            # Main score with progress
+                            score = posture_analysis['percentage']
                             st.metric(
-                                "Overall Posture Score", 
-                                f"{posture_analysis['total_score']}/{posture_analysis['max_score']}",
-                                delta=f"{score_percentage:.1f}%"
+                                "🎯 Posture Score",
+                                f"{posture_analysis['total_score']}/20",
+                                f"{score:.1f}%"
                             )
                             
-                            # Progress bar
-                            st.progress(score_percentage / 100)
+                            # Animated progress bar
+                            progress_bar = st.progress(0)
+                            for i in range(int(score)):
+                                progress_bar.progress(i / 100)
+                            progress_bar.progress(score / 100)
                             
-                            # Overall status
+                            # Overall status with color coding
                             if posture_analysis['overall_color'] == 'success':
                                 st.success(f"✅ {posture_analysis['overall']}")
                             elif posture_analysis['overall_color'] == 'info':
@@ -473,75 +450,84 @@ with col1:
                             else:
                                 st.error(f"❌ {posture_analysis['overall']}")
                             
-                            # Risk level
-                            st.metric("Risk Level", posture_analysis['risk_level'])
+                            # Risk assessment
+                            risk_colors = {
+                                "Very Low": "🟢",
+                                "Low": "🟡", 
+                                "Moderate": "🟠",
+                                "High": "🔴",
+                                "Very High": "🔴"
+                            }
+                            risk_color = risk_colors.get(posture_analysis['risk_level'], "⚪")
+                            st.metric("🚨 Risk Level", f"{risk_color} {posture_analysis['risk_level']}")
                             
                             # Detailed breakdown
-                            st.subheader("🔍 Detailed Breakdown")
-                            
-                            # Create expandable sections for each area
-                            with st.expander("Head & Neck Analysis", expanded=True):
-                                st.write(f"{posture_analysis['head_color']} **{posture_analysis['head_forward']}**")
-                                st.write(f"Score: {posture_analysis['head_score']}/4")
-                            
-                            with st.expander("Shoulder Analysis"):
-                                st.write(f"{posture_analysis['shoulder_color']} **{posture_analysis['shoulder_level']}**")
-                                st.write(f"Score: {posture_analysis['shoulder_score']}/4")
-                            
-                            with st.expander("Hip Analysis"):
-                                st.write(f"{posture_analysis['hip_color']} **{posture_analysis['hip_level']}**")
-                                st.write(f"Score: {posture_analysis['hip_score']}/4")
-                            
-                            with st.expander("Knee Analysis"):
-                                st.write(f"{posture_analysis['knee_color']} **{posture_analysis['knee_level']}**")
-                                st.write(f"Score: {posture_analysis['knee_score']}/4")
-                            
-                            with st.expander("Overall Alignment"):
-                                st.write(f"{posture_analysis['alignment_color']} **{posture_analysis['alignment']}**")
-                                st.write(f"Score: {posture_analysis['alignment_score']}/4")
+                            with st.expander("🔍 Detailed AI Analysis", expanded=True):
+                                st.markdown("**Regional Assessment:**")
+                                st.write(f"{posture_analysis['head_color']} **Head Position:** {posture_analysis['head_forward']} ({posture_analysis['head_score']}/4)")
+                                st.write(f"{posture_analysis['shoulder_color']} **Shoulder Level:** {posture_analysis['shoulder_level']} ({posture_analysis['shoulder_score']}/4)")
+                                st.write(f"{posture_analysis['hip_color']} **Hip Alignment:** {posture_analysis['hip_level']} ({posture_analysis['hip_score']}/4)")
+                                st.write(f"{posture_analysis['knee_color']} **Knee Position:** {posture_analysis['knee_level']} ({posture_analysis['knee_score']}/4)")
+                                st.write(f"{posture_analysis['alignment_color']} **Overall Alignment:** {posture_analysis['alignment']} ({posture_analysis['alignment_score']}/4)")
                             
                             # Save analysis button
-                            if st.button("💾 Save Analysis", use_container_width=True):
+                            if st.button("💾 Save AI Analysis", use_container_width=True):
                                 if save_analysis_data(posture_analysis, patient_name):
-                                    st.success("✅ Analysis saved successfully!")
+                                    st.success("✅ Analysis saved to database!")
+                                    st.balloons()
                                 else:
-                                    st.error("❌ Error saving analysis")
+                                    st.error("❌ Failed to save analysis")
                         
-                        # Exercise recommendations below the images
-                        st.subheader("💪 Personalized Exercise Recommendations")
+                        # Exercise recommendations below images
+                        st.subheader("💪 Personalized Exercise Prescription")
+                        st.markdown("*Based on AI posture analysis findings*")
+                        
                         recommendations = generate_exercise_recommendations(posture_analysis)
                         
-                        # Display recommendations in a nice format
-                        with st.container():
-                            for rec in recommendations:
-                                if rec.startswith("**") and rec.endswith("**"):
-                                    st.markdown(f"### {rec}")
-                                elif rec == "":
-                                    st.markdown("")
+                        # Display recommendations in organized format
+                        rec_col1, rec_col2 = st.columns(2)
+                        col_index = 0
+                        
+                        for rec in recommendations:
+                            if rec.startswith("**") and rec.endswith("**"):
+                                if col_index % 2 == 0:
+                                    with rec_col1:
+                                        st.markdown(rec)
                                 else:
-                                    st.markdown(rec)
+                                    with rec_col2:
+                                        st.markdown(rec)
+                                col_index += 1
+                            elif rec == "":
+                                continue
+                            else:
+                                if col_index % 2 == 1:
+                                    with rec_col1:
+                                        st.markdown(rec)
+                                else:
+                                    with rec_col2:
+                                        st.markdown(rec)
                     
                     else:
-                        st.error(f"❌ Analysis Error: {posture_analysis['error']}")
+                        st.error(f"❌ AI Analysis Error: {posture_analysis['error']}")
                 
                 else:
-                    st.warning("⚠️ No pose detected in image. Please ensure:")
+                    st.warning("⚠️ AI could not detect human pose in image.")
                     st.markdown("""
-                    - Person is fully visible in the frame
-                    - Good lighting conditions
-                    - Clear background
-                    - Side view positioning
-                    - Try adjusting detection confidence in sidebar
+                    **Troubleshooting:**
+                    - Ensure person is fully visible
+                    - Check lighting conditions
+                    - Try side-view positioning
+                    - Adjust detection confidence in sidebar
+                    - Use plain background
                     """)
     
     elif analysis_mode == "Take Photo":
-        st.info("📸 Take a side-view photo for posture analysis")
+        st.info("📸 Position yourself sideways to the camera for optimal AI analysis")
         
         # Camera input
-        picture = st.camera_input("Position yourself sideways and take a photo")
+        picture = st.camera_input("Take a photo for AI posture analysis")
         
         if picture is not None:
-            # Process the captured image
             image = Image.open(picture)
             image_array = np.array(image)
             image_height, image_width = image_array.shape[:2]
@@ -551,40 +537,41 @@ with col1:
                 static_image_mode=True,
                 model_complexity=2,
                 enable_segmentation=False,
-                min_detection_confidence=detection_confidence) as pose:
+                min_detection_confidence=detection_confidence
+            ) as pose:
                 
                 results = pose.process(cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR))
                 
-                # Draw landmarks
+                # Create annotated image
                 annotated_image = image_array.copy()
                 if results.pose_landmarks:
                     mp_drawing.draw_landmarks(
                         annotated_image,
                         results.pose_landmarks,
                         mp_pose.POSE_CONNECTIONS,
-                        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
+                        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+                    )
                 
                 # Display result
-                st.image(annotated_image, caption="Your Posture Analysis", use_column_width=True)
+                st.image(annotated_image, caption="🤖 Your AI Posture Analysis", use_column_width=True)
                 
-                # Analyze posture if landmarks detected
+                # Analyze if landmarks detected
                 if results.pose_landmarks:
                     posture_analysis = analyze_posture(
-                        results.pose_landmarks.landmark, 
-                        image_width, 
+                        results.pose_landmarks.landmark,
+                        image_width,
                         image_height
                     )
                     
                     if "error" not in posture_analysis:
                         with col2:
-                            st.header("📊 Your Results")
+                            st.header("📊 Your AI Results")
                             
-                            # Score display
-                            score_percentage = posture_analysis['percentage']
+                            score = posture_analysis['percentage']
                             st.metric("Posture Score", f"{posture_analysis['total_score']}/20")
-                            st.progress(score_percentage / 100)
+                            st.progress(score / 100)
                             
-                            # Status
+                            # Status display
                             if posture_analysis['overall_color'] == 'success':
                                 st.success(f"✅ {posture_analysis['overall']}")
                             elif posture_analysis['overall_color'] == 'info':
@@ -594,75 +581,68 @@ with col1:
                             else:
                                 st.error(f"❌ {posture_analysis['overall']}")
                             
-                            st.metric("Risk Level", posture_analysis['risk_level'])
-                            
-                            # Save button
+                            # Quick save button
                             if st.button("💾 Save Analysis"):
                                 if save_analysis_data(posture_analysis, patient_name):
-                                    st.success("✅ Saved!")
+                                    st.success("✅ Saved to database!")
                         
-                        # Recommendations
-                        st.subheader("💡 Your Exercise Plan")
+                        # Show personalized recommendations
+                        st.subheader("💡 Your Personalized Exercise Plan")
                         recommendations = generate_exercise_recommendations(posture_analysis)
                         for rec in recommendations:
                             if rec.startswith("**") and rec.endswith("**"):
-                                st.markdown(f"### {rec}")
+                                st.markdown(rec)
                             elif rec == "":
                                 st.markdown("")
                             else:
                                 st.markdown(rec)
                 else:
-                    st.warning("⚠️ Could not detect pose. Please retake photo with better positioning.")
-    
-    else:  # Live Analysis
-        st.info("🔴 Live camera analysis coming in future update!")
-        st.markdown("""
-        **Coming Soon:**
-        - Real-time posture monitoring
-        - Live feedback during exercises
-        - Movement pattern analysis
-        - Dynamic posture assessment
-        """)
+                    st.warning("⚠️ AI could not detect pose. Please retake photo with better positioning.")
 
 # Progress tracking section
 if os.path.exists("posture_analysis_log.csv"):
     st.markdown("---")
-    st.header("📈 Progress Tracking")
+    st.header("📈 AI Analysis Progress Tracking")
     
     try:
         df = pd.read_csv("posture_analysis_log.csv")
         if len(df) > 0:
-            
-            # Filter by patient if specified
-            if patient_name != "Anonymous":
-                patient_data = df[df['patient'] == patient_name]
-                if len(patient_data) > 0:
-                    st.subheader(f"Progress for {patient_name}")
-                    
-                    # Show recent scores
-                    recent_scores = patient_data.tail(5)[['timestamp', 'total_score', 'percentage', 'overall_assessment']]
-                    st.dataframe(recent_scores, use_container_width=True)
-                    
-                    # Progress chart
-                    if len(patient_data) > 1:
-                        import plotly.express as px
-                        fig = px.line(patient_data, x='timestamp', y='percentage', 
-                                    title=f'Posture Score Progress - {patient_name}',
-                                    labels={'percentage': 'Posture Score (%)', 'timestamp': 'Date'})
-                        st.plotly_chart(fig, use_container_width=True)
-            
-            # Overall statistics
-            col1, col2, col3 = st.columns(3)
+            # Summary metrics
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Total Analyses", len(df))
+                st.metric("Total AI Analyses", len(df))
             with col2:
                 st.metric("Average Score", f"{df['percentage'].mean():.1f}%")
             with col3:
                 st.metric("Latest Score", f"{df['percentage'].iloc[-1]:.1f}%")
+            with col4:
+                improvement = df['percentage'].iloc[-1] - df['percentage'].iloc[0] if len(df) > 1 else 0
+                st.metric("Progress", f"{improvement:+.1f}%")
+            
+            # Recent analyses table
+            st.subheader("📋 Recent AI Analyses")
+            recent = df.tail(10)[['timestamp', 'patient', 'total_score', 'percentage', 'overall_assessment', 'risk_level']]
+            st.dataframe(recent, use_container_width=True)
+            
+            # Progress visualization
+            if len(df) > 1:
+                st.subheader("📊 Progress Visualization")
+                
+                # Create simple line chart
+                chart_data = df[['timestamp', 'percentage']].copy()
+                chart_data['timestamp'] = pd.to_datetime(chart_data['timestamp'])
+                chart_data = chart_data.set_index('timestamp')
+                
+                st.line_chart(chart_data, use_container_width=True)
     
     except Exception as e:
         st.error(f"Error loading progress data: {str(e)}")
 
-# Footer
+# Footer with AI info
 st.markdown("---")
-st.caption("🤖 AI Clinical Assistant • Advanced posture analysis powered by MediaPipe • Evidence-based exercise recommendations")
+st.markdown("""
+<div style='text-align: center; color: #666; font-size: 14px;'>
+🤖 <strong>AI Clinical Assistant</strong> • Advanced posture analysis powered by MediaPipe AI<br>
+Professional-grade landmark detection • Evidence-based exercise prescription • HIPAA-compliant local storage
+</div>
+""", unsafe_allow_html=True)
