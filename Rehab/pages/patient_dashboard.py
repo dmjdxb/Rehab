@@ -301,3 +301,164 @@ if selected_athlete != 'All Patients' and len(filtered) > 0:
             st.warning(alert)
     else:
         st.success("✅ No clinical alerts - patient progressing well")
+
+# Add this section to your pages/patient_dashboard.py file
+# Add after the clinical alerts section at the bottom:
+
+# Exercise recommendations based on current phase
+if selected_athlete != 'All Patients' and len(filtered) > 0:
+    latest = filtered.iloc[-1]
+    current_phase = latest['Phase']
+    current_injury = latest['Injury']
+    
+    st.markdown("---")
+    st.subheader(f"💪 Recommended Exercises for {selected_athlete}")
+    st.markdown(f"*Based on current phase: **{current_phase}** for **{current_injury}** injury*")
+    
+    # Import the functions (add these at the top of your file)
+    def extract_youtube_id(url):
+        """Extract YouTube video ID from various YouTube URL formats"""
+        if not url or not isinstance(url, str):
+            return None
+        
+        import re
+        patterns = [
+            r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})',
+            r'youtube\.com/watch\?.*v=([a-zA-Z0-9_-]{11})',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return None
+
+    def embed_youtube_video(video_url, width="100%", height=315):
+        """Embed a YouTube video in Streamlit"""
+        if not video_url or not video_url.strip():
+            return False
+        
+        video_id = extract_youtube_id(video_url)
+        if not video_id:
+            return False
+        
+        embed_html = f"""
+        <iframe 
+            width="{width}" 
+            height="{height}" 
+            src="https://www.youtube.com/embed/{video_id}" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+        </iframe>
+        """
+        
+        st.markdown(embed_html, unsafe_allow_html=True)
+        return True
+    
+    # Load exercise recommendations
+    try:
+        csv_path = "exercise_index_master.csv"
+        if os.path.exists(csv_path):
+            import pandas as pd
+            exercise_df = pd.read_csv(csv_path)
+            
+            # Get exercises for current injury and phase
+            current_exercises = exercise_df[
+                (exercise_df['Injury'] == current_injury) & 
+                (exercise_df['Phase'] == current_phase)
+            ].copy()
+            
+            if len(current_exercises) == 0:
+                # Fallback to any exercises for this phase
+                current_exercises = exercise_df[exercise_df['Phase'] == current_phase].head(3)
+            
+            if len(current_exercises) > 0:
+                # Separate exercises with and without videos
+                exercises_with_videos = current_exercises[
+                    current_exercises['VideoURL'].notna() & 
+                    (current_exercises['VideoURL'].str.strip() != '')
+                ].head(3)
+                
+                exercises_without_videos = current_exercises[
+                    current_exercises['VideoURL'].isna() | 
+                    (current_exercises['VideoURL'].str.strip() == '')
+                ].head(3)
+                
+                if len(exercises_with_videos) > 0:
+                    st.markdown("#### 🎬 Exercise Video Library")
+                    
+                    # Create columns for video exercises
+                    if len(exercises_with_videos) == 1:
+                        # Single video
+                        exercise = exercises_with_videos.iloc[0]
+                        st.markdown(f"**{exercise['Exercise']}**")
+                        st.markdown(f"*{exercise['Goal']}*")
+                        
+                        video_col1, video_col2 = st.columns([2, 1])
+                        with video_col1:
+                            embed_youtube_video(exercise['VideoURL'], height=250)
+                        with video_col2:
+                            st.markdown(f"**Type:** {exercise['Type']}")
+                            st.markdown(f"**Equipment:** {exercise['Equipment']}")
+                            if exercise['Progression'] and exercise['Progression'] != 'Not specified':
+                                with st.expander("📈 Progression"):
+                                    st.write(exercise['Progression'])
+                    
+                    elif len(exercises_with_videos) <= 3:
+                        # Multiple videos in tabs
+                        tab_names = [ex['Exercise'] for _, ex in exercises_with_videos.iterrows()]
+                        tabs = st.tabs(tab_names)
+                        
+                        for tab, (_, exercise) in zip(tabs, exercises_with_videos.iterrows()):
+                            with tab:
+                                st.markdown(f"**Goal:** {exercise['Goal']}")
+                                st.markdown(f"**Type:** {exercise['Type']} | **Equipment:** {exercise['Equipment']}")
+                                
+                                embed_youtube_video(exercise['VideoURL'], height=280)
+                                
+                                if exercise['Progression'] and exercise['Progression'] != 'Not specified':
+                                    with st.expander("📈 View Progression Details"):
+                                        st.write(exercise['Progression'])
+                                
+                                if exercise['Evidence'] and exercise['Evidence'] != 'Clinical experience':
+                                    st.caption(f"📚 Evidence: {exercise['Evidence']}")
+                
+                # Show exercises without videos
+                if len(exercises_without_videos) > 0:
+                    st.markdown("#### 📝 Additional Recommended Exercises")
+                    
+                    for _, exercise in exercises_without_videos.iterrows():
+                        with st.expander(f"{exercise['Exercise']} ({exercise['Type']})"):
+                            st.markdown(f"**Goal:** {exercise['Goal']}")
+                            st.markdown(f"**Equipment:** {exercise['Equipment']}")
+                            if exercise['Progression'] and exercise['Progression'] != 'Not specified':
+                                st.markdown(f"**Progression:** {exercise['Progression']}")
+                            if exercise['Evidence'] and exercise['Evidence'] != 'Clinical experience':
+                                st.markdown(f"**Evidence:** {exercise['Evidence']}")
+                
+                # Quick action buttons
+                st.markdown("#### 🔗 Quick Actions")
+                action_col1, action_col2, action_col3 = st.columns(3)
+                
+                with action_col1:
+                    if st.button("🔍 Find More Exercises"):
+                        st.info("Use the 'Advanced Search' page to find more exercises for this injury and phase.")
+                
+                with action_col2:
+                    if st.button("➕ Add New Exercise"):
+                        st.info("Use the 'Add New Exercise' page to contribute to the database.")
+                
+                with action_col3:
+                    if st.button("📊 Update Progress"):
+                        st.info("Use the 'Rehab Engine' to log a new assessment session.")
+            
+            else:
+                st.info(f"No specific exercises found for {current_injury} {current_phase} phase. Use the 'Advanced Search' to find similar exercises.")
+        
+        else:
+            st.warning("Exercise database not found. Please add exercises using the 'Add New Exercise' page.")
+    
+    except Exception as e:
+        st.error(f"Error loading exercise recommendations: {e}")
+        st.info("Please check that the exercise database is properly formatted.")
