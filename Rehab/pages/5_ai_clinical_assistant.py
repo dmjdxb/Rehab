@@ -577,15 +577,27 @@ def create_clickable_image_interface(image_array):
     
     # Convert to base64 for HTML display
     pil_image = Image.fromarray(image_array.astype(np.uint8))
+    
+    # Resize image if it's too large to fit properly
+    max_height = 800
+    if height > max_height:
+        scale_factor = max_height / height
+        new_width = int(width * scale_factor)
+        new_height = max_height
+        pil_image = pil_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    else:
+        new_width = width
+        new_height = height
+    
     buffered = io.BytesIO()
     pil_image.save(buffered, format="PNG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode()
     
     # Create the interactive HTML interface
     html_interface = f"""
-    <div style="position: relative; display: inline-block; border: 2px solid #0066cc; border-radius: 10px; overflow: hidden;">
+    <div style="position: relative; display: inline-block; border: 2px solid #0066cc; border-radius: 10px; overflow: hidden; width: 100%; max-width: 900px; margin: 0 auto;">
         <img id="postureImage" src="data:image/png;base64,{img_base64}" 
-             style="width: 100%; max-width: 600px; height: auto; display: block; cursor: crosshair;"
+             style="width: 100%; height: auto; display: block; cursor: crosshair;"
              onclick="placeLandmark(event)">
         
         <div id="landmarks" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
@@ -790,7 +802,7 @@ with st.sidebar:
     """)
 
 # Main content
-col1, col2 = st.columns([3, 2])
+col1, col2 = st.columns([2, 1])  # Changed from [3, 2] to [2, 1] for better balance
 
 with col1:
     st.header("📸 Clinical Posture Analysis")
@@ -863,7 +875,7 @@ with col1:
             
             # Create clickable interface
             html_interface = create_clickable_image_interface(image_array)
-            st.components.v1.html(html_interface, height=700)
+            st.components.v1.html(html_interface, height=900)  # Increased height
             
             # Manual landmark input as backup
             st.markdown("---")
