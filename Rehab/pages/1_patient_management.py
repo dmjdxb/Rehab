@@ -546,12 +546,6 @@ with tab4:
         # Age and sex distribution
         col1, col2 = st.columns(2)
         
-labels={'x': 'Phase', 'y': 'Number of Patients'})
-            st.plotly_chart(fig_phase, use_container_width=True)
-        
-        # Age and sex distribution
-        col1, col2 = st.columns(2)
-        
         with col1:
             # Age distribution
             patient_df['Age'] = patient_df['DateOfBirth'].apply(calculate_age)
