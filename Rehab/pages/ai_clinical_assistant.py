@@ -8,6 +8,13 @@ import os
 import base64
 import io
 
+# Try to import scipy for better image processing
+try:
+    from scipy import ndimage
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+
 # Page configuration
 st.set_page_config(
     page_title="AI Clinical Assistant - Visual Posture Analysis",
@@ -32,85 +39,265 @@ except ImportError:
     MEDIAPIPE_AVAILABLE = False
 
 def estimate_anatomical_landmarks(image_array):
-    """Estimate key anatomical landmarks for clinical measurement"""
+    """Estimate key anatomical landmarks using improved body detection"""
     height, width = image_array.shape[:2]
     
-    # Convert to grayscale for edge detection
+    # Convert to grayscale
     if len(image_array.shape) == 3:
         gray = np.mean(image_array, axis=2).astype(np.uint8)
     else:
         gray = image_array
     
-    # Apply edge detection to find body contours
-    edges = np.gradient(gray)
-    vertical_edges = np.abs(edges[1])  # Horizontal changes (vertical edges)
-    horizontal_edges = np.abs(edges[0])  # Vertical changes (horizontal edges)
+    # Find the actual body region using skin tone and contrast detection
+    body_mask = detect_body_region(image_array)
+    body_center_x = find_body_centerline(body_mask, height)
     
-    # Estimate landmark positions based on anatomical proportions
+    # Use anatomical proportions relative to detected body region
     landmarks = {}
     
-    # Standard anatomical proportions (Leonardo da Vinci's measurements)
-    # Head: ~1/8 of total height from top
-    # Shoulders: ~1/6 of total height from top  
-    # Hips: ~1/2 of total height from top
-    # Knees: ~3/4 of total height from top
-    # Ankles: ~7/8 of total height from top
+    # Find body boundaries
+    body_top, body_bottom, body_left, body_right = find_body_boundaries(body_mask)
     
-    # Find the body outline by detecting edges
-    body_outline = find_body_outline(gray)
-    
-    if body_outline:
-        # Skull/Head (top of body + head proportion)
-        head_y = int(height * 0.08)  # 8% from top
-        head_x = find_centerline_x(gray, head_y, width)
+    if body_top is not None and body_bottom is not None:
+        body_height = body_bottom - body_top
+        
+        # Head/Skull - at body top + head proportion
+        head_y = body_top + int(body_height * 0.12)  # 12% down from body top
+        head_x = body_center_x[min(head_y, len(body_center_x)-1)]
         landmarks['skull'] = (head_x, head_y)
         
-        # Shoulders (shoulder line detection)
-        shoulder_y = int(height * 0.16)  # 16% from top
-        shoulder_points = find_shoulder_points(gray, shoulder_y, width)
-        landmarks['left_shoulder'] = shoulder_points[0]
-        landmarks['right_shoulder'] = shoulder_points[1]
-        landmarks['shoulder_center'] = ((shoulder_points[0][0] + shoulder_points[1][0])//2, shoulder_y)
+        # Shoulders - anatomical shoulder line
+        shoulder_y = body_top + int(body_height * 0.20)  # 20% down from body top
+        shoulder_center_x = body_center_x[min(shoulder_y, len(body_center_x)-1)]
+        shoulder_width = estimate_shoulder_width(body_mask, shoulder_y)
+        landmarks['left_shoulder'] = (shoulder_center_x - shoulder_width//2, shoulder_y)
+        landmarks['right_shoulder'] = (shoulder_center_x + shoulder_width//2, shoulder_y)
+        landmarks['shoulder_center'] = (shoulder_center_x, shoulder_y)
         
-        # Hips (hip line detection)
-        hip_y = int(height * 0.50)  # 50% from top
-        hip_points = find_hip_points(gray, hip_y, width)
-        landmarks['left_hip'] = hip_points[0]
-        landmarks['right_hip'] = hip_points[1]
-        landmarks['hip_center'] = ((hip_points[0][0] + hip_points[1][0])//2, hip_y)
+        # Hips - anatomical hip line  
+        hip_y = body_top + int(body_height * 0.55)  # 55% down from body top
+        hip_center_x = body_center_x[min(hip_y, len(body_center_x)-1)]
+        hip_width = estimate_hip_width(body_mask, hip_y)
+        landmarks['left_hip'] = (hip_center_x - hip_width//2, hip_y)
+        landmarks['right_hip'] = (hip_center_x + hip_width//2, hip_y)
+        landmarks['hip_center'] = (hip_center_x, hip_y)
         
-        # Knees (knee line detection)
-        knee_y = int(height * 0.72)  # 72% from top
-        knee_points = find_knee_points(gray, knee_y, width)
-        landmarks['left_knee'] = knee_points[0]
-        landmarks['right_knee'] = knee_points[1]
+        # Knees - anatomical knee line
+        knee_y = body_top + int(body_height * 0.75)  # 75% down from body top
+        knee_center_x = body_center_x[min(knee_y, len(body_center_x)-1)]
+        knee_width = estimate_knee_width(body_mask, knee_y)
+        landmarks['left_knee'] = (knee_center_x - knee_width//2, knee_y)
+        landmarks['right_knee'] = (knee_center_x + knee_width//2, knee_y)
         
-        # Ankles (ankle line detection)
-        ankle_y = int(height * 0.90)  # 90% from top
-        ankle_points = find_ankle_points(gray, ankle_y, width)
-        landmarks['left_ankle'] = ankle_points[0]
-        landmarks['right_ankle'] = ankle_points[1]
+        # Ankles - anatomical ankle line
+        ankle_y = body_top + int(body_height * 0.92)  # 92% down from body top
+        ankle_center_x = body_center_x[min(ankle_y, len(body_center_x)-1)]
+        ankle_width = estimate_ankle_width(body_mask, ankle_y)
+        landmarks['left_ankle'] = (ankle_center_x - ankle_width//2, ankle_y)
+        landmarks['right_ankle'] = (ankle_center_x + ankle_width//2, ankle_y)
     
     else:
-        # Fallback to proportional estimates if edge detection fails
-        center_x = width // 2
-        landmarks = {
-            'skull': (center_x, int(height * 0.08)),
-            'left_shoulder': (int(width * 0.35), int(height * 0.16)),
-            'right_shoulder': (int(width * 0.65), int(height * 0.16)),
-            'shoulder_center': (center_x, int(height * 0.16)),
-            'left_hip': (int(width * 0.40), int(height * 0.50)),
-            'right_hip': (int(width * 0.60), int(height * 0.50)),
-            'hip_center': (center_x, int(height * 0.50)),
-            'left_knee': (int(width * 0.42), int(height * 0.72)),
-            'right_knee': (int(width * 0.58), int(height * 0.72)),
-            'left_ankle': (int(width * 0.44), int(height * 0.90)),
-            'right_ankle': (int(width * 0.56), int(height * 0.90))
-        }
+        # Enhanced fallback using image analysis
+        landmarks = create_proportional_landmarks(image_array, width, height)
     
     return landmarks
 
-def find_body_outline(gray):
+def detect_body_region(image_array):
+    """Detect the actual body region, excluding shadows and background"""
+    height, width = image_array.shape[:2]
+    
+    # Convert to different color spaces for better body detection
+    if len(image_array.shape) == 3:
+        # RGB analysis
+        r, g, b = image_array[:,:,0], image_array[:,:,1], image_array[:,:,2]
+        
+        # Skin tone detection (rough approximation)
+        skin_mask = ((r > 95) & (g > 40) & (b > 20) & 
+                    (np.maximum(np.maximum(r, g), b) - np.minimum(np.minimum(r, g), b) > 15) &
+                    (np.abs(r - g) > 15) & (r > g) & (r > b))
+        
+        # Clothing detection (non-skin regions with moderate contrast)
+        gray = np.mean(image_array, axis=2)
+        clothing_mask = ((gray > 30) & (gray < 200) & ~skin_mask)
+        
+        # Combine skin and clothing for body detection
+        body_mask = skin_mask | clothing_mask
+        
+        # Remove small isolated regions (likely shadows/noise)
+        if SCIPY_AVAILABLE:
+            from scipy import ndimage
+            body_mask = ndimage.binary_opening(body_mask, structure=np.ones((5,5)))
+            body_mask = ndimage.binary_closing(body_mask, structure=np.ones((10,10)))
+        else:
+            # Simple noise reduction without scipy
+            # Erode then dilate to remove small noise
+            kernel = np.ones((3,3), np.uint8)
+            body_mask = binary_erosion(body_mask, kernel)
+            body_mask = binary_dilation(body_mask, kernel)
+        
+    else:
+        # Fallback for grayscale
+        gray = image_array
+        # Simple threshold-based body detection
+        body_mask = (gray > 50) & (gray < 220)
+    
+    return body_mask
+
+def find_body_centerline(body_mask, height):
+    """Find the centerline of the body at each height level"""
+    centerline = []
+    
+    for y in range(height):
+        row = body_mask[y, :]
+        body_pixels = np.where(row)[0]
+        
+        if len(body_pixels) > 0:
+            # Find center of body mass at this height
+            center_x = int(np.mean(body_pixels))
+        else:
+            # Use previous centerline point if available
+            center_x = centerline[-1] if centerline else body_mask.shape[1] // 2
+        
+        centerline.append(center_x)
+    
+    # Smooth the centerline to remove noise
+    centerline = smooth_centerline(centerline)
+    
+    return centerline
+
+def smooth_centerline(centerline):
+    """Smooth the centerline using a moving average"""
+    smoothed = []
+    window_size = 5
+    
+    for i in range(len(centerline)):
+        start_idx = max(0, i - window_size//2)
+        end_idx = min(len(centerline), i + window_size//2 + 1)
+        window_values = centerline[start_idx:end_idx]
+        smoothed.append(int(np.mean(window_values)))
+    
+    return smoothed
+
+def find_body_boundaries(body_mask):
+    """Find the top, bottom, left, and right boundaries of the body"""
+    body_pixels = np.where(body_mask)
+    
+    if len(body_pixels[0]) > 0:
+        body_top = np.min(body_pixels[0])
+        body_bottom = np.max(body_pixels[0])
+        body_left = np.min(body_pixels[1])
+        body_right = np.max(body_pixels[1])
+        return body_top, body_bottom, body_left, body_right
+    else:
+        return None, None, None, None
+
+def estimate_shoulder_width(body_mask, shoulder_y):
+    """Estimate shoulder width at the shoulder line"""
+    if shoulder_y >= body_mask.shape[0]:
+        return body_mask.shape[1] // 4
+    
+    row = body_mask[shoulder_y, :]
+    body_pixels = np.where(row)[0]
+    
+    if len(body_pixels) > 0:
+        return int(np.max(body_pixels) - np.min(body_pixels))
+    else:
+        return body_mask.shape[1] // 4
+
+def estimate_hip_width(body_mask, hip_y):
+    """Estimate hip width at the hip line"""
+    if hip_y >= body_mask.shape[0]:
+        return body_mask.shape[1] // 5
+    
+    row = body_mask[hip_y, :]
+    body_pixels = np.where(row)[0]
+    
+    if len(body_pixels) > 0:
+        return int((np.max(body_pixels) - np.min(body_pixels)) * 0.8)  # Hips narrower than shoulders
+    else:
+        return body_mask.shape[1] // 5
+
+def estimate_knee_width(body_mask, knee_y):
+    """Estimate knee width at the knee line"""
+    if knee_y >= body_mask.shape[0]:
+        return body_mask.shape[1] // 8
+    
+    row = body_mask[knee_y, :]
+    body_pixels = np.where(row)[0]
+    
+    if len(body_pixels) > 0:
+        return int((np.max(body_pixels) - np.min(body_pixels)) * 0.6)  # Knees narrower than hips
+    else:
+        return body_mask.shape[1] // 8
+
+def estimate_ankle_width(body_mask, ankle_y):
+    """Estimate ankle width at the ankle line"""
+    if ankle_y >= body_mask.shape[0]:
+        return body_mask.shape[1] // 10
+    
+    row = body_mask[ankle_y, :]
+    body_pixels = np.where(row)[0]
+    
+    if len(body_pixels) > 0:
+        return int((np.max(body_pixels) - np.min(body_pixels)) * 0.4)  # Ankles narrower than knees
+    else:
+        return body_mask.shape[1] // 10
+
+def create_proportional_landmarks(image_array, width, height):
+    """Create anatomically proportional landmarks as fallback"""
+    # Use standard anatomical proportions
+    center_x = width // 2
+    
+    # Adjust center based on image content
+    if len(image_array.shape) == 3:
+        gray = np.mean(image_array, axis=2)
+        # Find the most likely body center by looking for vertical consistency
+        vertical_profile = np.mean(gray[height//4:3*height//4, :], axis=0)
+        # Find the peak in the middle region (likely torso)
+        middle_region = vertical_profile[width//4:3*width//4]
+        if len(middle_region) > 0:
+            peak_idx = np.argmax(middle_region) + width//4
+            center_x = peak_idx
+    
+    return {
+        'skull': (center_x, int(height * 0.08)),
+        'left_shoulder': (center_x - int(width * 0.12), int(height * 0.18)),
+        'right_shoulder': (center_x + int(width * 0.12), int(height * 0.18)),
+        'shoulder_center': (center_x, int(height * 0.18)),
+        'left_hip': (center_x - int(width * 0.08), int(height * 0.50)),
+        'right_hip': (center_x + int(width * 0.08), int(height * 0.50)),
+        'hip_center': (center_x, int(height * 0.50)),
+        'left_knee': (center_x - int(width * 0.06), int(height * 0.75)),
+        'right_knee': (center_x + int(width * 0.06), int(height * 0.75)),
+        'left_ankle': (center_x - int(width * 0.04), int(height * 0.92)),
+        'right_ankle': (center_x + int(width * 0.04), int(height * 0.92))
+    }
+
+def binary_erosion(image, kernel):
+    """Simple binary erosion without scipy"""
+    result = np.zeros_like(image, dtype=bool)
+    kh, kw = kernel.shape
+    padded = np.pad(image, ((kh//2, kh//2), (kw//2, kw//2)), mode='constant')
+    
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            region = padded[i:i+kh, j:j+kw]
+            if np.all(region[kernel == 1]):
+                result[i, j] = True
+    return result
+
+def binary_dilation(image, kernel):
+    """Simple binary dilation without scipy"""
+    result = np.zeros_like(image, dtype=bool)
+    kh, kw = kernel.shape
+    padded = np.pad(image, ((kh//2, kh//2), (kw//2, kw//2)), mode='constant')
+    
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            region = padded[i:i+kh, j:j+kw]
+            if np.any(region[kernel == 1]):
+                result[i, j] = True
+    return result
     """Find the main body outline in the image"""
     # Simple edge detection to find body contours
     # This is a simplified version - in reality, this would use more sophisticated methods
@@ -616,15 +803,40 @@ def save_analysis_data(analysis_data, patient_name="Unknown"):
     st.session_state.posture_analyses.append(save_data)
     return True
 
-# Custom CSS for camera rotation
+# Custom CSS for rectangular camera view (landscape orientation)
 st.markdown("""
 <style>
+.stCamera > div {
+    width: 100% !important;
+    max-width: 800px !important;
+}
+
+.stCamera > div > div {
+    width: 100% !important;
+    height: 500px !important;
+    aspect-ratio: 16/10 !important;
+}
+
 .stCamera > div > div > div > video {
-    transform: rotate(180deg);
-    -webkit-transform: rotate(180deg);
-    -moz-transform: rotate(180deg);
-    -ms-transform: rotate(180deg);
-    -o-transform: rotate(180deg);
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 10px !important;
+    border: 2px solid #0066cc !important;
+}
+
+.stCamera > div > div > div > canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 10px !important;
+}
+
+/* Make camera container rectangular */
+.stCamera {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -649,7 +861,7 @@ with st.sidebar:
     
     analysis_mode = st.selectbox(
         "📸 Analysis Mode",
-        ["Upload Image", "Take Photo (Rotated for Side View)"]
+        ["Upload Image", "Take Photo (Rectangular View for Side Analysis)"]
     )
     
     st.markdown("---")
@@ -778,9 +990,9 @@ with col1:
                 else:
                     st.markdown(rec)
     
-    elif analysis_mode == "Take Photo (Rotated for Side View)":
-        st.info("📸 Camera is rotated 180° for better side-view capture")
-        st.markdown("**Instructions:** Stand sideways to camera, full body visible")
+    elif analysis_mode == "Take Photo (Rectangular View for Side Analysis)":
+        st.info("📸 Camera optimized for side-view full-body capture")
+        st.markdown("**Instructions:** Stand sideways to camera, full body visible in rectangular frame")
         
         picture = st.camera_input("Take a side-view photo for clinical analysis")
         
