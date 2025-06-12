@@ -6,6 +6,34 @@ import os
 from datetime import datetime, timedelta
 import json
 
+# Helper functions
+def calculate_age(dob_str):
+    """Calculate age from date of birth string"""
+    try:
+        dob = pd.to_datetime(dob_str)
+        today = datetime.now()
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        return age
+    except:
+        return 0
+
+def calculate_bmi(weight_kg, height_cm):
+    """Calculate BMI"""
+    try:
+        height_m = height_cm / 100
+        bmi = weight_kg / (height_m ** 2)
+        return f"{bmi:.1f}"
+    except:
+        return "N/A"
+
+def calculate_days_since(date_str):
+    """Calculate days since a given date"""
+    try:
+        date = pd.to_datetime(date_str)
+        days = (datetime.now() - date).days
+        return days
+    except:
+        return 0
 # Initialize patient database
 PATIENT_DB_PATH = "patient_database.csv"
 SESSION_LOG_PATH = "session_log.csv"
@@ -518,6 +546,12 @@ with tab4:
         # Age and sex distribution
         col1, col2 = st.columns(2)
         
+labels={'x': 'Phase', 'y': 'Number of Patients'})
+            st.plotly_chart(fig_phase, use_container_width=True)
+        
+        # Age and sex distribution
+        col1, col2 = st.columns(2)
+        
         with col1:
             # Age distribution
             patient_df['Age'] = patient_df['DateOfBirth'].apply(calculate_age)
@@ -527,43 +561,14 @@ with tab4:
             st.plotly_chart(fig_age, use_container_width=True)
         
         with col2:
-            # Sex distribution
+            # Sex distribution - Fixed indentation here
             sex_counts = patient_df['Sex'].value_counts()
             fig_sex = px.pie(values=sex_counts.values,
                            names=sex_counts.index,
                            title="Distribution by Sex")
             st.plotly_chart(fig_sex, use_container_width=True)
 
-# Helper functions
-def calculate_age(dob_str):
-    """Calculate age from date of birth string"""
-    try:
-        dob = pd.to_datetime(dob_str)
-        today = datetime.now()
-        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-        return age
-    except:
-        return 0
-
-def calculate_bmi(weight_kg, height_cm):
-    """Calculate BMI"""
-    try:
-        height_m = height_cm / 100
-        bmi = weight_kg / (height_m ** 2)
-        return f"{bmi:.1f}"
-    except:
-        return "N/A"
-
-def calculate_days_since(date_str):
-    """Calculate days since a given date"""
-    try:
-        date = pd.to_datetime(date_str)
-        days = (datetime.now() - date).days
-        return days
-    except:
-        return 0
-
-# Add custom CSS for better styling
+# Add custom CSS for better styling - This should be at the top level, not indented
 st.markdown("""
 <style>
     .stTabs [data-baseweb="tab-list"] {
