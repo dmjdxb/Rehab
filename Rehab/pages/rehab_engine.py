@@ -4,7 +4,12 @@ import os
 import re 
 from datetime import datetime
 from rehab_engine import get_rehab_phase, get_exercise_recommendations, get_all_exercises_for_injury_phase
+from patient_session_manager import PatientSessionManager
 
+patient_id = PatientSessionManager.create_patient_selector()
+if patient_id:
+    patient = PatientSessionManager.get_current_patient()
+    # Your page code with patient context
 # Add these video functions after your imports:
 def extract_youtube_id(url):
     """Extract YouTube video ID from various YouTube URL formats"""
