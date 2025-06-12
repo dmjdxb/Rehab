@@ -1,10 +1,51 @@
 import streamlit as st
 import pandas as pd
 import os
+import re 
 from datetime import datetime
-from rehab_engine import get_rehab_phase, get_exercise_recommendations
+from rehab_engine import get_rehab_phase, get_exercise_recommendations, get_all_exercises_for_injury_phase
 
+# Add these video functions after your imports:
+def extract_youtube_id(url):
+    """Extract YouTube video ID from various YouTube URL formats"""
+    if not url or not isinstance(url, str):
+        return None
+    
+    patterns = [
+        r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})',
+        r'youtube\.com/watch\?.*v=([a-zA-Z0-9_-]{11})',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
 
+def embed_youtube_video(video_url, width="100%", height=315):
+    """Embed a YouTube video in Streamlit"""
+    if not video_url or not video_url.strip():
+        return False
+    
+    video_id = extract_youtube_id(video_url)
+    if not video_id:
+        return False
+    
+    embed_html = f"""
+    <iframe 
+        width="{width}" 
+        height="{height}" 
+        src="https://www.youtube.com/embed/{video_id}" 
+        frameborder="0" 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+        allowfullscreen>
+    </iframe>
+    """
+    
+    st.markdown(embed_html, unsafe_allow_html=True)
+    return True
+
+# ... rest of your existing code ...
 st.title("🦿 Rehab Progression Engine")
 st.markdown("""
 Enter clinical or VALD-derived metrics to determine the appropriate phase of rehabilitation.
@@ -143,14 +184,79 @@ if st.button("📈 Calculate Rehab Phase", use_container_width=True):
         # Show detailed message
         st.info(result['message'])
         
-        # Get exercise recommendations
+       # Get exercise recommendations
         recommendations = get_exercise_recommendations(injury, result['phase'])
         
-        with st.expander(f"📋 Exercise Recommendations for {result['phase']} Phase"):
+        # Enhanced exercise recommendations with embedded videos
+        with st.expander(f"📋 Exercise Recommendations for {result['phase']} Phase", expanded=True):
             st.markdown(f"**Focus Areas:** {', '.join(recommendations['focus'])}")
             st.markdown(f"**Recommended Exercise Types:** {', '.join(recommendations['exercise_types'])}")
             st.markdown(f"**Avoid:** {', '.join(recommendations['avoid'])}")
-        
+            
+            # Show specific exercises from database
+            if recommendations.get("specific_exercises"):
+                st.markdown("---")
+                st.subheader("🎯 Recommended Exercises")
+                
+                # Create tabs for exercises with videos
+                exercises_with_videos = [ex for ex in recommendations["specific_exercises"] if ex.get('VideoURL') and ex['VideoURL'].strip()]
+                exercises_without_videos = [ex for ex in recommendations["specific_exercises"] if not (ex.get('VideoURL') and ex['VideoURL'].strip())]
+                
+                if exercises_with_videos:
+                    st.markdown("### 📹 Video Demonstrations")
+                    
+                    # Create tabs for video exercises
+                    tab_names = [f"{ex['Exercise']}" for ex in exercises_with_videos]
+                    tabs = st.tabs(tab_names)
+                    
+                    for tab, exercise in zip(tabs, exercises_with_videos):
+                        with tab:
+                            col1, col2 = st.columns([1, 1])
+                            
+                            with col1:
+                                st.markdown(f"**Goal:** {exercise['Goal']}")
+                                st.markdown(f"**Type:** {exercise['Type']}")
+                                st.markdown(f"**Equipment:** {exercise['Equipment']}")
+                                
+                                if exercise['Progression'] and exercise['Progression'] != 'Not specified':
+                                    st.markdown(f"**Progression:** {exercise['Progression']}")
+                                
+                                if exercise['Evidence'] and exercise['Evidence'] != 'Clinical experience':
+                                    st.markdown(f"**Evidence:** {exercise['Evidence']}")
+                            
+                            with col2:
+                                st.markdown("**📹 Exercise Video:**")
+                                if embed_youtube_video(exercise['VideoURL'], height=250):
+                                    st.success("✅ Video loaded successfully")
+                                else:
+                                    st.error("❌ Could not load video")
+                                    st.markdown(f"[🎥 Watch on YouTube]({exercise['VideoURL']})")
+                
+                # Show exercises without videos
+                if exercises_without_videos:
+                    st.markdown("### 📝 Additional Exercises")
+                    
+                    for i, exercise in enumerate(exercises_without_videos):
+                        with st.container():
+                            st.markdown(f"**{i+1}. {exercise['Exercise']}** ({exercise['Type']})")
+                            st.markdown(f"*{exercise['Goal']}*")
+                            
+                            if exercise['Equipment'] != 'None':
+                                st.caption(f"Equipment: {exercise['Equipment']}")
+                            
+                            if exercise['Progression'] and exercise['Progression'] != 'Not specified':
+                                with st.expander("📈 View Progression"):
+                                    st.write(exercise['Progression'])
+                            
+                            st.markdown("---")
+                
+                # Button to see more exercises
+                if st.button(f"🔍 Browse All {injury} Exercises"):
+                    st.write(f"**All Available {injury} Exercises:**")
+                    st.info("💡 Use the 'Advanced Search' page to find more exercises and filter by phase, equipment, etc.")
+            
+            else:
+                st.info("💡 **Tip:** Add exercises with YouTube links to your database using the 'Add New Exercise' page to see video demonstrations here!")
         # Warning alerts
         if asymmetry < 90:
             st.warning("⚠️ **LSI < 90%** — Increased risk of re-injury. Consider additional strengthening.")
