@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import re
 
-st.set_page_config(page_title="Advanced Search", layout="wide")
 
 st.title("🔍 Advanced Exercise Search")
 st.markdown("Search and filter the exercise database to find the most appropriate interventions for your patients.")
