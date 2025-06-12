@@ -767,7 +767,7 @@ with st.sidebar:
     
     analysis_mode = st.selectbox(
         "📊 Analysis Mode",
-        ["Upload Image", "Take Photo", "Manual Landmark Placement"]
+        ["Upload Image", "Take Photo (Vertical Full-Body)", "Manual Landmark Placement"]
     )
     
     st.markdown("---")
@@ -818,13 +818,13 @@ with col1:
             # Display images
             img_col1, img_col2 = st.columns(2)
             with img_col1:
-                st.image(image, caption="📷 Original Photo", use_column_width=True)
+                st.image(image, caption="📷 Original Photo", use_container_width=True)
             with img_col2:
-                st.image(annotated_image, caption="🎯 Clinical Measurement Points", use_column_width=True)
+                st.image(annotated_image, caption="🎯 Clinical Measurement Points", use_container_width=True)
     
-    elif analysis_mode == "Take Photo":
-        st.info("📷 Camera optimized for side-view full-body capture")
-        st.markdown("**Instructions:** Stand sideways to camera, full body visible")
+    elif analysis_mode == "Take Photo (Vertical Full-Body)":
+        st.info("📷 Camera optimized for vertical full-body capture")
+        st.markdown("**Instructions:** Stand facing or sideways to camera, full body visible in vertical frame")
         
         picture = st.camera_input("Take a side-view photo for clinical analysis")
         
@@ -869,7 +869,11 @@ with col1:
             st.markdown("---")
             st.markdown("### 🔧 Manual Coordinate Entry (Alternative)")
             
-            with st.expander("Enter landmark coordinates manually"):
+            # Use a container instead of expander to avoid nesting
+            manual_entry = st.container()
+            
+            with manual_entry:
+                st.info("Enter coordinates manually if clicking doesn't work")
                 col1, col2, col3 = st.columns(3)
                 
                 manual_coords = {}
@@ -950,9 +954,9 @@ with col1:
                         # Display images side by side
                         img_col1, img_col2 = st.columns(2)
                         with img_col1:
-                            st.image(image, caption="📷 Original Photo", use_column_width=True)
+                            st.image(image, caption="📷 Original Photo", use_container_width=True)
                         with img_col2:
-                            st.image(annotated_image, caption="🎯 Manual Landmark Analysis", use_column_width=True)
+                            st.image(annotated_image, caption="🎯 Manual Landmark Analysis", use_container_width=True)
                         
                         # Store analysis for display in sidebar
                         st.session_state.current_analysis = analysis
