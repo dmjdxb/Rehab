@@ -3,7 +3,12 @@ import pandas as pd
 import os
 import re
 from datetime import datetime
+from patient_session_manager import PatientSessionManager
 
+patient_id = PatientSessionManager.create_patient_selector()
+if patient_id:
+    patient = PatientSessionManager.get_current_patient()
+    # Your page code with patient context
 
 st.title("➕ Add New Exercise")
 st.markdown("Fill out the details below to submit a new exercise to the shared index. All submissions are saved locally and can be reviewed before publishing.")
