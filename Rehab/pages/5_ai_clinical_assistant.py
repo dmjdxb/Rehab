@@ -808,8 +808,14 @@ with st.sidebar:
     """)
 
 # Main content - adjust column ratio for better layout
-col1, col2 = st.columns([3, 2])  # Give more space to left column
+try:
+    col1, col2 = st.columns([3, 2])  # Give more space to left column
+except Exception as e:
+    st.error(f"Error creating columns: {e}")
+    col1 = st.container()
+    col2 = st.container()
 
+# Main content area
 with col1:
     st.header("📸 Clinical Posture Analysis")
     
@@ -839,6 +845,8 @@ with col1:
                 st.image(image, caption="📷 Original Photo", use_container_width=True)
             with img_col2:
                 st.image(annotated_image, caption="🎯 Clinical Measurement Points", use_container_width=True)
+        else:
+            st.info("👆 Please upload an image to begin analysis")
     
     elif analysis_mode == "Take Photo (Vertical Full-Body)":
         st.info("📷 Camera optimized for vertical full-body capture")
