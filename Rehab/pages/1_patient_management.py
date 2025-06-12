@@ -34,6 +34,7 @@ def calculate_days_since(date_str):
         return days
     except:
         return 0
+
 # Initialize patient database
 PATIENT_DB_PATH = "patient_database.csv"
 SESSION_LOG_PATH = "session_log.csv"
@@ -266,13 +267,25 @@ with tab2:
                 
                 with btn_col2:
                     if st.button(f"📊 View Progress", key=f"progress_{patient['PatientID']}"):
+                        # Store patient info in session state
                         st.session_state['dashboard_patient'] = f"{patient['FirstName']} {patient['LastName']}"
-                        st.switch_page("pages/patient_dashboard.py")
+                        st.session_state['selected_patient_id'] = patient['PatientID']
+                        # Navigate to the Progress Dashboard page (update this to match your actual page name)
+                        try:
+                            st.switch_page("pages/3_progress_dashboard.py")
+                        except:
+                            st.warning("Progress Dashboard page not found. Please ensure the page exists in the pages/ directory.")
                 
                 with btn_col3:
                     if st.button(f"🏃 Start Session", key=f"session_{patient['PatientID']}"):
+                        # Store patient info in session state
                         st.session_state['session_patient'] = f"{patient['FirstName']} {patient['LastName']}"
-                        st.switch_page("pages/rehab_engine.py")
+                        st.session_state['selected_patient_id'] = patient['PatientID']
+                        # Navigate to the Rehabilitation Engine page (update this to match your actual page name)
+                        try:
+                            st.switch_page("pages/2_rehabilitation_engine.py")
+                        except:
+                            st.warning("Rehabilitation Engine page not found. Please ensure the page exists in the pages/ directory.")
 
 # Tab 3: Patient Profile
 with tab3:
@@ -302,7 +315,7 @@ with tab3:
                     <div style="
                         width: 150px;
                         height: 150px;
-                        background-color: #f0f0f0;
+                        background-color: #f0f2f6;
                         border-radius: 50%;
                         display: flex;
                         align-items: center;
@@ -555,14 +568,14 @@ with tab4:
             st.plotly_chart(fig_age, use_container_width=True)
         
         with col2:
-            # Sex distribution - Fixed indentation here
+            # Sex distribution
             sex_counts = patient_df['Sex'].value_counts()
             fig_sex = px.pie(values=sex_counts.values,
                            names=sex_counts.index,
                            title="Distribution by Sex")
             st.plotly_chart(fig_sex, use_container_width=True)
 
-# Add custom CSS for better styling - This should be at the top level, not indented
+# Add custom CSS for better styling
 st.markdown("""
 <style>
     .stTabs [data-baseweb="tab-list"] {
