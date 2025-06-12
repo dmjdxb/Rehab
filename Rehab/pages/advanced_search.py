@@ -2,7 +2,12 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+from patient_session_manager import PatientSessionManager
 
+patient_id = PatientSessionManager.create_patient_selector()
+if patient_id:
+    patient = PatientSessionManager.get_current_patient()
+    # Your page code with patient context
 
 st.title("🔍 Advanced Exercise Search")
 st.markdown("Search and filter the exercise database to find the most appropriate interventions for your patients.")
