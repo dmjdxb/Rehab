@@ -1002,14 +1002,14 @@ with col2:
         
         st.markdown("## 📊 Clinical Analysis")
         
-        # Display score in a clear way
-        st.markdown(f"""
-        <div style="text-align: center; padding: 20px; background-color: rgba(0, 0, 0, 0.1); border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255, 255, 255, 0.1);">
-            <h2 style="margin: 0; color: inherit;">Clinical Posture Score</h2>
-            <h1 style="margin: 10px 0; font-size: 48px; color: inherit;">{analysis['total_score']}/16</h1>
-            <p style="margin: 0; font-size: 24px; color: #28a745;">↑ {analysis['percentage']:.1f}%</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # Display score using metrics instead of HTML
+        score_col1, score_col2, score_col3 = st.columns([1, 2, 1])
+        with score_col2:
+            st.metric(
+                label="Clinical Posture Score",
+                value=f"{analysis['total_score']}/16",
+                delta=f"{analysis['percentage']:.1f}%"
+            )
         
         # Progress bar
         st.progress(analysis['percentage'] / 100)
@@ -1024,26 +1024,18 @@ with col2:
         else:
             st.error(f"❌ {analysis['overall']}")
         
-        st.markdown(f"""
-        <div style="text-align: center; padding: 15px; background-color: rgba(0, 0, 0, 0.1); border-radius: 10px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.1);">
-            <h3 style="margin: 0; color: inherit;">Clinical Risk Level</h3>
-            <h2 style="margin: 10px 0; color: inherit;">{analysis['risk_level']}</h2>
-        </div>
-        """, unsafe_allow_html=True)
+        # Risk level using metric
+        st.metric("Clinical Risk Level", analysis['risk_level'])
         
         # Detailed measurements
         with st.expander("📏 Clinical Measurements", expanded=True):
             measurements = analysis['measurements']
             
-            # Create a nice layout for measurements
-            st.markdown(f"""
-            <div style="padding: 10px; background-color: transparent;">
-                <p style="color: inherit;">{analysis['head_color']} <strong>Head Position:</strong> {analysis['head_assessment']}</p>
-                <p style="color: inherit;">{analysis['shoulder_color']} <strong>Shoulders:</strong> {analysis['shoulder_assessment']}</p>
-                <p style="color: inherit;">{analysis['hip_color']} <strong>Hips:</strong> {analysis['hip_assessment']}</p>
-                <p style="color: inherit;">{analysis['alignment_color']} <strong>Alignment:</strong> {analysis['alignment_assessment']}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            # Display assessments without HTML
+            st.write(f"{analysis['head_color']} **Head Position:** {analysis['head_assessment']}")
+            st.write(f"{analysis['shoulder_color']} **Shoulders:** {analysis['shoulder_assessment']}")
+            st.write(f"{analysis['hip_color']} **Hips:** {analysis['hip_assessment']}")
+            st.write(f"{analysis['alignment_color']} **Alignment:** {analysis['alignment_assessment']}")
             
             st.markdown("---")
             st.markdown("### 📊 Raw Measurements")
@@ -1051,11 +1043,11 @@ with col2:
             # Two column layout for measurements
             m1, m2 = st.columns(2)
             with m1:
-                st.markdown(f"**Head forward:** {measurements['head_alignment']:.1f}%")
-                st.markdown(f"**Shoulder asymmetry:** {measurements['shoulder_symmetry']:.1f}%")
+                st.metric("Head forward", f"{measurements['head_alignment']:.1f}%")
+                st.metric("Shoulder asymmetry", f"{measurements['shoulder_symmetry']:.1f}%")
             with m2:
-                st.markdown(f"**Hip asymmetry:** {measurements['hip_symmetry']:.1f}%")
-                st.markdown(f"**Vertical offset:** {measurements['vertical_alignment']:.1f}%")
+                st.metric("Hip asymmetry", f"{measurements['hip_symmetry']:.1f}%")
+                st.metric("Vertical offset", f"{measurements['vertical_alignment']:.1f}%")
         
         # Save button
         st.markdown("---")
@@ -1072,20 +1064,10 @@ with col2:
         recommendations = generate_exercise_recommendations(analysis)
         
         for rec in recommendations:
-            if rec.startswith("**") and rec.endswith("**"):
-                st.markdown(rec)
-            elif rec == "":
-                st.markdown("")
-            else:
-                st.markdown(f"• {rec}")
+            st.write(rec)
     else:
         # Show placeholder when no analysis
-        st.markdown("""
-        <div style="text-align: center; padding: 50px; background-color: rgba(0, 0, 0, 0.1); border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);">
-            <h3 style="color: inherit;">📊 Clinical Analysis</h3>
-            <p style="color: inherit;">Results will appear here after analysis</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.info("📊 **Clinical Analysis**\n\nResults will appear here after analysis")
 
 # Progress tracking section - outside of columns
 st.markdown("---")
