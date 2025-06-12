@@ -5,6 +5,9 @@ import re
 from datetime import datetime
 from rehab_engine import get_rehab_phase, get_exercise_recommendations, get_all_exercises_for_injury_phase
 from patient_session_manager import PatientSessionManager
+from rehabilitation_logic import get_rehab_phase, get_exercise_recommendations, get_all_exercises_for_injury_phase
+
+# The rest uses the integrated version I provided
 
 patient_id = PatientSessionManager.create_patient_selector()
 if patient_id:
