@@ -4,7 +4,6 @@ import os
 import re
 from datetime import datetime
 
-st.set_page_config(page_title="Add New Exercise", layout="centered")
 
 st.title("➕ Add New Exercise")
 st.markdown("Fill out the details below to submit a new exercise to the shared index. All submissions are saved locally and can be reviewed before publishing.")
