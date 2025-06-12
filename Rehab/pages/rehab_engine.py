@@ -23,7 +23,7 @@ def extract_youtube_id(url):
     return None
 
 def embed_youtube_video(video_url, width="100%", height=315):
-    """Embed a YouTube video in Streamlit"""
+    """Embed a YouTube video in Streamlit with better error handling"""
     if not video_url or not video_url.strip():
         return False
     
@@ -31,19 +31,23 @@ def embed_youtube_video(video_url, width="100%", height=315):
     if not video_id:
         return False
     
+    # Use YouTube's no-cookie domain and add parameters for better embedding
     embed_html = f"""
     <iframe 
         width="{width}" 
         height="{height}" 
-        src="https://www.youtube.com/embed/{video_id}" 
+        src="https://www.youtube-nocookie.com/embed/{video_id}?rel=0&modestbranding=1&playsinline=1" 
         frameborder="0" 
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
         allowfullscreen>
     </iframe>
     """
     
-    st.markdown(embed_html, unsafe_allow_html=True)
-    return True
+    try:
+        st.markdown(embed_html, unsafe_allow_html=True)
+        return True
+    except Exception:
+        return False
 
 # ... rest of your existing code ...
 st.title("🦿 Rehab Progression Engine")
