@@ -619,9 +619,9 @@ def create_clickable_image_interface(image_array):
         </div>
     </div>
     
-    <div style="margin-top: 15px; padding: 15px; background: #f0f7ff; border-radius: 10px; border: 1px solid #0066cc;">
+    <div style="margin-top: 15px; padding: 15px; background-color: rgba(0, 0, 0, 0.2); border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);">
         <h4 style="color: #0066cc; margin-top: 0;">📍 Landmark Placement Guide:</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; color: inherit;">
             <div><strong>1. Skull/Head:</strong> Top of head or ear level</div>
             <div><strong>2. Left Shoulder:</strong> Acromion process (left side)</div>
             <div><strong>3. Right Shoulder:</strong> Acromion process (right side)</div>
@@ -632,7 +632,7 @@ def create_clickable_image_interface(image_array):
             <div><strong>8. Left Ankle:</strong> Lateral malleolus</div>
             <div><strong>9. Right Ankle:</strong> Lateral malleolus</div>
         </div>
-        <div style="margin-top: 10px; font-size: 12px; color: #666;">
+        <div style="margin-top: 10px; font-size: 12px; color: inherit; opacity: 0.8;">
             💡 <strong>Tip:</strong> Click directly on the anatomical landmarks. The system will calculate measurements once all 9 points are placed.
         </div>
     </div>
@@ -904,44 +904,46 @@ with col1:
             st.markdown("### 🔧 Manual Coordinate Entry")
             st.warning("📝 **Required:** After clicking landmarks above, enter their coordinates here to proceed with analysis")
             
-            st.info("Enter coordinates manually if clicking doesn't work")
-            coords_col1, coords_col2, coords_col3 = st.columns(3)
-            
-            manual_coords = {}
-            landmarks_list = [
-                ('skull', 'Skull/Head'),
-                ('left_shoulder', 'Left Shoulder'),
-                ('right_shoulder', 'Right Shoulder'),
-                ('left_hip', 'Left Hip'),
-                ('right_hip', 'Right Hip'),
-                ('left_knee', 'Left Knee'),
-                ('right_knee', 'Right Knee'),
-                ('left_ankle', 'Left Ankle'),
-                ('right_ankle', 'Right Ankle')
-            ]
-            
-            for i, (key, label) in enumerate(landmarks_list):
-                col = [coords_col1, coords_col2, coords_col3][i % 3]
-                with col:
-                    st.write(f"**{label}**")
-                    x = st.number_input(f"X", key=f"{key}_x", min_value=0, max_value=image_array.shape[1])
-                    y = st.number_input(f"Y", key=f"{key}_y", min_value=0, max_value=image_array.shape[0])
-                    manual_coords[key] = (int(x), int(y))
-            
-            if st.button("📍 Use Manual Coordinates", use_container_width=True):
-                st.session_state.manual_landmarks = [
-                    {'name': key, 'x': coords[0], 'y': coords[1]} 
-                    for key, coords in manual_coords.items()
+            # Manual landmark input
+            with st.form("landmark_coordinates_form"):
+                st.info("Look at the clicked landmarks above and enter their approximate pixel coordinates below")
+                
+                coords_col1, coords_col2, coords_col3 = st.columns(3)
+                
+                manual_coords = {}
+                landmarks_list = [
+                    ('skull', 'Skull/Head', 'red'),
+                    ('left_shoulder', 'Left Shoulder', 'green'),
+                    ('right_shoulder', 'Right Shoulder', 'green'),
+                    ('left_hip', 'Left Hip', 'blue'),
+                    ('right_hip', 'Right Hip', 'blue'),
+                    ('left_knee', 'Left Knee', 'yellow'),
+                    ('right_knee', 'Right Knee', 'yellow'),
+                    ('left_ankle', 'Left Ankle', 'orange'),
+                    ('right_ankle', 'Right Ankle', 'orange')
                 ]
-                st.session_state.landmarks_placed = True
-                st.success("✅ Manual coordinates saved!")
-            
-            # Calculate button and results
-            if st.session_state.landmarks_placed or st.session_state.manual_landmarks:
-                if st.button("🔍 Calculate Clinical Analysis", use_container_width=True, type="primary", key="calc_manual"):
-                    if st.session_state.manual_landmarks:
-                        # Process manual landmarks
-                        with st.spinner("🔍 Calculating clinical measurements from manual landmarks..."):
+                
+                for i, (key, label, color) in enumerate(landmarks_list):
+                    col = [coords_col1, coords_col2, coords_col3][i % 3]
+                    with col:
+                        st.markdown(f"**{label}** <span style='color: {color};'>●</span>", unsafe_allow_html=True)
+                        x = st.number_input(f"X", key=f"{key}_x", min_value=0, max_value=image_array.shape[1], value=0)
+                        y = st.number_input(f"Y", key=f"{key}_y", min_value=0, max_value=image_array.shape[0], value=0)
+                        manual_coords[key] = (int(x), int(y))
+                
+                submitted = st.form_submit_button("✅ Confirm Coordinates & Analyze", use_container_width=True, type="primary")
+                
+                if submitted:
+                    # Check if all coordinates are set (not all zeros)
+                    if all(coords != (0, 0) for coords in manual_coords.values()):
+                        st.session_state.manual_landmarks = [
+                            {'name': key, 'x': coords[0], 'y': coords[1]} 
+                            for key, coords in manual_coords.items()
+                        ]
+                        st.session_state.landmarks_placed = True
+                        
+                        # Process manual landmarks immediately
+                        with st.spinner("🔍 Calculating clinical measurements..."):
                             landmarks = process_manual_landmarks(st.session_state.manual_landmarks)
                             
                             # Calculate measurements
@@ -980,17 +982,17 @@ with col1:
                         annotated_image = create_annotated_image(image_array, landmarks, analysis)
                         
                         # Display results
-                        st.markdown("---")
-                        st.subheader("📊 Clinical Analysis Results")
+                        st.success("✅ Clinical analysis completed!")
                         
                         # Display images side by side
+                        st.markdown("### 📊 Analysis Results")
                         img_col1, img_col2 = st.columns(2)
                         with img_col1:
                             st.image(image, caption="📷 Original Photo", use_container_width=True)
                         with img_col2:
                             st.image(annotated_image, caption="🎯 Manual Landmark Analysis", use_container_width=True)
                     else:
-                        st.warning("⚠️ Please place all 9 landmarks before calculating.")
+                        st.error("❌ Please enter valid coordinates for all landmarks (not all zeros)")
 
 # Right column - Analysis results
 with col2:
@@ -1002,9 +1004,9 @@ with col2:
         
         # Display score in a clear way
         st.markdown(f"""
-        <div style="text-align: center; padding: 20px; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 20px;">
-            <h2 style="margin: 0;">Clinical Posture Score</h2>
-            <h1 style="margin: 10px 0; font-size: 48px;">{analysis['total_score']}/16</h1>
+        <div style="text-align: center; padding: 20px; background-color: rgba(0, 0, 0, 0.1); border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <h2 style="margin: 0; color: inherit;">Clinical Posture Score</h2>
+            <h1 style="margin: 10px 0; font-size: 48px; color: inherit;">{analysis['total_score']}/16</h1>
             <p style="margin: 0; font-size: 24px; color: #28a745;">↑ {analysis['percentage']:.1f}%</p>
         </div>
         """, unsafe_allow_html=True)
@@ -1023,9 +1025,9 @@ with col2:
             st.error(f"❌ {analysis['overall']}")
         
         st.markdown(f"""
-        <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 10px; margin: 20px 0;">
-            <h3 style="margin: 0;">Clinical Risk Level</h3>
-            <h2 style="margin: 10px 0;">{analysis['risk_level']}</h2>
+        <div style="text-align: center; padding: 15px; background-color: rgba(0, 0, 0, 0.1); border-radius: 10px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <h3 style="margin: 0; color: inherit;">Clinical Risk Level</h3>
+            <h2 style="margin: 10px 0; color: inherit;">{analysis['risk_level']}</h2>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1035,11 +1037,11 @@ with col2:
             
             # Create a nice layout for measurements
             st.markdown(f"""
-            <div style="padding: 10px;">
-                <p>{analysis['head_color']} <strong>Head Position:</strong> {analysis['head_assessment']}</p>
-                <p>{analysis['shoulder_color']} <strong>Shoulders:</strong> {analysis['shoulder_assessment']}</p>
-                <p>{analysis['hip_color']} <strong>Hips:</strong> {analysis['hip_assessment']}</p>
-                <p>{analysis['alignment_color']} <strong>Alignment:</strong> {analysis['alignment_assessment']}</p>
+            <div style="padding: 10px; background-color: transparent;">
+                <p style="color: inherit;">{analysis['head_color']} <strong>Head Position:</strong> {analysis['head_assessment']}</p>
+                <p style="color: inherit;">{analysis['shoulder_color']} <strong>Shoulders:</strong> {analysis['shoulder_assessment']}</p>
+                <p style="color: inherit;">{analysis['hip_color']} <strong>Hips:</strong> {analysis['hip_assessment']}</p>
+                <p style="color: inherit;">{analysis['alignment_color']} <strong>Alignment:</strong> {analysis['alignment_assessment']}</p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1079,9 +1081,9 @@ with col2:
     else:
         # Show placeholder when no analysis
         st.markdown("""
-        <div style="text-align: center; padding: 50px; background-color: #f8f9fa; border-radius: 10px;">
-            <h3>📊 Clinical Analysis</h3>
-            <p>Results will appear here after analysis</p>
+        <div style="text-align: center; padding: 50px; background-color: rgba(0, 0, 0, 0.1); border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <h3 style="color: inherit;">📊 Clinical Analysis</h3>
+            <p style="color: inherit;">Results will appear here after analysis</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1141,7 +1143,7 @@ with legend_col2:
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666; font-size: 14px;'>
+<div style='text-align: center; color: inherit; opacity: 0.7; font-size: 14px;'>
 💙 <strong>AI Clinical Assistant</strong> • Visual posture analysis with clinical measurement validation<br>
 Quantified assessment • Evidence-based scoring • Professional documentation
 </div>
