@@ -781,7 +781,165 @@ def generate_exercise_recommendations(analysis):
     
     return recommendations
 
-def save_analysis_data(analysis_data, patient_name="Unknown"):
+def create_clickable_image_interface(image_array):
+    """Create an interactive interface for manual landmark placement"""
+    height, width = image_array.shape[:2]
+    
+    # Convert to base64 for HTML display
+    pil_image = Image.fromarray(image_array.astype(np.uint8))
+    buffered = io.BytesIO()
+    pil_image.save(buffered, format="PNG")
+    img_base64 = base64.b64encode(buffered.getvalue()).decode()
+    
+    # Create the interactive HTML interface
+    html_interface = f"""
+    <div style="position: relative; display: inline-block; border: 2px solid #0066cc; border-radius: 10px; overflow: hidden;">
+        <img id="postureImage" src="data:image/png;base64,{img_base64}" 
+             style="width: 100%; max-width: 600px; height: auto; display: block; cursor: crosshair;"
+             onclick="placeLandmark(event)">
+        
+        <div id="landmarks" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+        </div>
+        
+        <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 5px; font-size: 12px;">
+            <div><strong>Click to place landmarks:</strong></div>
+            <div id="currentLandmark" style="color: #00ff00; font-weight: bold;">1. Skull/Head</div>
+            <div style="margin-top: 5px;">
+                <button onclick="resetLandmarks()" style="background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px;">Reset</button>
+                <button onclick="undoLast()" style="background: #ffaa00; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Undo</button>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 15px; padding: 15px; background: #f0f7ff; border-radius: 10px; border: 1px solid #0066cc;">
+        <h4 style="color: #0066cc; margin-top: 0;">📍 Landmark Placement Guide:</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+            <div><strong>1. Skull/Head:</strong> Top of head or ear level</div>
+            <div><strong>2. Left Shoulder:</strong> Acromion process (left side)</div>
+            <div><strong>3. Right Shoulder:</strong> Acromion process (right side)</div>
+            <div><strong>4. Left Hip:</strong> Greater trochanter (left side)</div>
+            <div><strong>5. Right Hip:</strong> Greater trochanter (right side)</div>
+            <div><strong>6. Left Knee:</strong> Lateral femoral condyle</div>
+            <div><strong>7. Right Knee:</strong> Lateral femoral condyle</div>
+            <div><strong>8. Left Ankle:</strong> Lateral malleolus</div>
+            <div><strong>9. Right Ankle:</strong> Lateral malleolus</div>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px; color: #666;">
+            💡 <strong>Tip:</strong> Click directly on the anatomical landmarks. The system will calculate measurements once all 9 points are placed.
+        </div>
+    </div>
+    
+    <script>
+        let landmarkCount = 0;
+        let landmarks = [];
+        const landmarkNames = [
+            'skull', 'left_shoulder', 'right_shoulder', 'left_hip', 'right_hip',
+            'left_knee', 'right_knee', 'left_ankle', 'right_ankle'
+        ];
+        const landmarkLabels = [
+            '1. Skull/Head', '2. Left Shoulder', '3. Right Shoulder', '4. Left Hip', '5. Right Hip',
+            '6. Left Knee', '7. Right Knee', '8. Left Ankle', '9. Right Ankle'
+        ];
+        const landmarkColors = ['#ff0000', '#00ff00', '#00ff00', '#0000ff', '#0000ff', '#ffff00', '#ffff00', '#ff8800', '#ff8800'];
+        
+        function placeLandmark(event) {{
+            if (landmarkCount >= 9) return;
+            
+            const rect = event.target.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width * {width}).toFixed(0);
+            const y = ((event.clientY - rect.top) / rect.height * {height}).toFixed(0);
+            
+            landmarks.push({{
+                name: landmarkNames[landmarkCount],
+                x: parseInt(x),
+                y: parseInt(y),
+                color: landmarkColors[landmarkCount]
+            }});
+            
+            addLandmarkDot(event.clientX - rect.left, event.clientY - rect.top, landmarkColors[landmarkCount], landmarkCount + 1);
+            landmarkCount++;
+            
+            updateCurrentLandmark();
+            
+            if (landmarkCount === 9) {{
+                document.getElementById('currentLandmark').innerHTML = '✅ All landmarks placed! Click Calculate below.';
+                // Store landmarks in Streamlit session state
+                window.parent.postMessage({{
+                    type: 'landmarks_complete',
+                    landmarks: landmarks
+                }}, '*');
+            }}
+        }}
+        
+        function addLandmarkDot(x, y, color, number) {{
+            const landmarksDiv = document.getElementById('landmarks');
+            const dot = document.createElement('div');
+            dot.style.position = 'absolute';
+            dot.style.left = (x - 8) + 'px';
+            dot.style.top = (y - 8) + 'px';
+            dot.style.width = '16px';
+            dot.style.height = '16px';
+            dot.style.borderRadius = '50%';
+            dot.style.backgroundColor = color;
+            dot.style.border = '2px solid white';
+            dot.style.color = 'white';
+            dot.style.fontSize = '10px';
+            dot.style.fontWeight = 'bold';
+            dot.style.display = 'flex';
+            dot.style.alignItems = 'center';
+            dot.style.justifyContent = 'center';
+            dot.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            dot.innerHTML = number;
+            dot.id = 'landmark_' + number;
+            landmarksDiv.appendChild(dot);
+        }}
+        
+        function updateCurrentLandmark() {{
+            if (landmarkCount < 9) {{
+                document.getElementById('currentLandmark').innerHTML = landmarkLabels[landmarkCount];
+            }}
+        }}
+        
+        function resetLandmarks() {{
+            landmarks = [];
+            landmarkCount = 0;
+            document.getElementById('landmarks').innerHTML = '';
+            updateCurrentLandmark();
+            window.parent.postMessage({{type: 'landmarks_reset'}}, '*');
+        }}
+        
+        function undoLast() {{
+            if (landmarkCount > 0) {{
+                landmarks.pop();
+                landmarkCount--;
+                document.getElementById('landmark_' + (landmarkCount + 1)).remove();
+                updateCurrentLandmark();
+            }}
+        }}
+    </script>
+    """
+    
+    return html_interface
+
+def process_manual_landmarks(manual_landmarks):
+    """Process manually placed landmarks and convert to our format"""
+    landmarks = {}
+    
+    for landmark in manual_landmarks:
+        landmarks[landmark['name']] = (landmark['x'], landmark['y'])
+    
+    # Calculate shoulder and hip centers
+    if 'left_shoulder' in landmarks and 'right_shoulder' in landmarks:
+        left_s = landmarks['left_shoulder']
+        right_s = landmarks['right_shoulder']
+        landmarks['shoulder_center'] = ((left_s[0] + right_s[0])//2, (left_s[1] + right_s[1])//2)
+    
+    if 'left_hip' in landmarks and 'right_hip' in landmarks:
+        left_h = landmarks['left_hip']
+        right_h = landmarks['right_hip']
+        landmarks['hip_center'] = ((left_h[0] + right_h[0])//2, (left_h[1] + right_h[1])//2)
+    
+    return landmarks
     """Save analysis to session state (cloud-compatible)"""
     if 'posture_analyses' not in st.session_state:
         st.session_state.posture_analyses = []
@@ -861,7 +1019,7 @@ with st.sidebar:
     
     analysis_mode = st.selectbox(
         "📸 Analysis Mode",
-        ["Upload Image", "Take Photo (Rectangular View for Side Analysis)"]
+        ["Upload Image", "Take Photo (Rectangular View for Side Analysis)", "Manual Landmark Placement"]
     )
     
     st.markdown("---")
@@ -989,6 +1147,216 @@ with col1:
                     st.markdown("")
                 else:
                     st.markdown(rec)
+    
+    elif analysis_mode == "Manual Landmark Placement":
+        st.header("🎯 Manual Clinical Landmark Placement")
+        st.info("📍 Click directly on anatomical landmarks for precise clinical measurement")
+        
+        uploaded_file = st.file_uploader(
+            "Upload photo for manual landmark placement",
+            type=['jpg', 'jpeg', 'png'],
+            help="Upload a clear side-view photo for precise landmark placement"
+        )
+        
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file)
+            image_array = np.array(image)
+            
+            # Initialize session state for manual landmarks
+            if 'manual_landmarks' not in st.session_state:
+                st.session_state.manual_landmarks = None
+            if 'landmarks_placed' not in st.session_state:
+                st.session_state.landmarks_placed = False
+            
+            # Display interactive interface
+            st.markdown("### 📍 Click on the image to place landmarks:")
+            
+            # Create clickable interface
+            html_interface = create_clickable_image_interface(image_array)
+            st.components.v1.html(html_interface, height=700)
+            
+            # Manual landmark input as backup
+            st.markdown("---")
+            st.markdown("### 🔧 Manual Coordinate Entry (Alternative)")
+            
+            with st.expander("Enter landmark coordinates manually"):
+                col1, col2, col3 = st.columns(3)
+                
+                manual_coords = {}
+                landmarks_list = [
+                    ('skull', 'Skull/Head'),
+                    ('left_shoulder', 'Left Shoulder'),
+                    ('right_shoulder', 'Right Shoulder'),
+                    ('left_hip', 'Left Hip'),
+                    ('right_hip', 'Right Hip'),
+                    ('left_knee', 'Left Knee'),
+                    ('right_knee', 'Right Knee'),
+                    ('left_ankle', 'Left Ankle'),
+                    ('right_ankle', 'Right Ankle')
+                ]
+                
+                for i, (key, label) in enumerate(landmarks_list):
+                    col = [col1, col2, col3][i % 3]
+                    with col:
+                        st.write(f"**{label}**")
+                        x = st.number_input(f"X", key=f"{key}_x", min_value=0, max_value=image_array.shape[1])
+                        y = st.number_input(f"Y", key=f"{key}_y", min_value=0, max_value=image_array.shape[0])
+                        manual_coords[key] = (int(x), int(y))
+                
+                if st.button("📍 Use Manual Coordinates"):
+                    st.session_state.manual_landmarks = [
+                        {'name': key, 'x': coords[0], 'y': coords[1]} 
+                        for key, coords in manual_coords.items()
+                    ]
+                    st.session_state.landmarks_placed = True
+                    st.success("✅ Manual coordinates saved!")
+            
+            # Calculate button and results
+            if st.session_state.landmarks_placed or st.session_state.manual_landmarks:
+                st.markdown("---")
+                
+                if st.button("🔬 Calculate Clinical Analysis", use_container_width=True, type="primary"):
+                    if st.session_state.manual_landmarks:
+                        # Process manual landmarks
+                        with st.spinner("🔬 Calculating clinical measurements from manual landmarks..."):
+                            landmarks = process_manual_landmarks(st.session_state.manual_landmarks)
+                            analysis = calculate_clinical_measurements_from_landmarks(landmarks, image_array.shape[1], image_array.shape[0])
+                        
+                        # Create annotated image
+                        annotated_image = create_annotated_image(image_array, landmarks, analysis)
+                        
+                        # Display results
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.subheader("📊 Clinical Analysis Results")
+                            
+                            # Display images side by side
+                            img_col1, img_col2 = st.columns(2)
+                            with img_col1:
+                                st.image(image, caption="📷 Original Photo", use_column_width=True)
+                            with img_col2:
+                                st.image(annotated_image, caption="🎯 Manual Landmark Analysis", use_column_width=True)
+                        
+                        with col2:
+                            st.subheader("📈 Clinical Scores")
+                            
+                            # Main score
+                            score = analysis['percentage']
+                            st.metric(
+                                "Clinical Posture Score",
+                                f"{analysis['total_score']}/16",
+                                f"{score:.1f}%"
+                            )
+                            st.progress(score / 100)
+                            
+                            # Overall status
+                            if analysis['overall_color'] == 'success':
+                                st.success(f"✅ {analysis['overall']}")
+                            elif analysis['overall_color'] == 'info':
+                                st.info(f"ℹ️ {analysis['overall']}")
+                            elif analysis['overall_color'] == 'warning':
+                                st.warning(f"⚠️ {analysis['overall']}")
+                            else:
+                                st.error(f"❌ {analysis['overall']}")
+                            
+                            st.metric("Clinical Risk Level", analysis['risk_level'])
+                            
+                            # Detailed measurements
+                            with st.expander("📏 Precise Clinical Measurements", expanded=True):
+                                measurements = analysis['measurements']
+                                st.write(f"{analysis['head_color']} **Head:** {analysis['head_assessment']}")
+                                st.write(f"{analysis['shoulder_color']} **Shoulders:** {analysis['shoulder_assessment']}")
+                                st.write(f"{analysis['hip_color']} **Hips:** {analysis['hip_assessment']}")
+                                st.write(f"{analysis['alignment_color']} **Alignment:** {analysis['alignment_assessment']}")
+                                
+                                st.markdown("**📊 Precise Measurements:**")
+                                st.write(f"• Head forward: {measurements['head_alignment']:.2f}% of image width")
+                                st.write(f"• Shoulder asymmetry: {measurements['shoulder_symmetry']:.2f}% of image height")
+                                st.write(f"• Hip asymmetry: {measurements['hip_symmetry']:.2f}% of image height")
+                                st.write(f"• Vertical misalignment: {measurements['vertical_alignment']:.2f}% of image width")
+                            
+                            # Save button
+                            if st.button("💾 Save Manual Analysis", use_container_width=True):
+                                if save_analysis_data(analysis, patient_name):
+                                    st.success("✅ Manual analysis saved!")
+                                    st.balloons()
+                        
+                        # Exercise recommendations
+                        st.subheader("💪 Clinical Exercise Prescription")
+                        st.markdown("*Based on manually validated landmark measurements*")
+                        
+                        recommendations = generate_exercise_recommendations(analysis)
+                        
+                        for rec in recommendations:
+                            if rec.startswith("**") and rec.endswith("**"):
+                                st.markdown(rec)
+                            elif rec == "":
+                                st.markdown("")
+                            else:
+                                st.markdown(rec)
+                    
+                    else:
+                        st.warning("⚠️ Please place all 9 landmarks before calculating.")
+            
+            else:
+                st.info("👆 Click on the image above to place anatomical landmarks, or use the manual coordinate entry below.")
+
+def calculate_clinical_measurements_from_landmarks(landmarks, width, height):
+    """Calculate clinical measurements from manually placed landmarks"""
+    measurements = {}
+    
+    # Head alignment (forward head posture)
+    skull_x = landmarks['skull'][0]
+    shoulder_center_x = landmarks['shoulder_center'][0]
+    head_forward_distance = abs(skull_x - shoulder_center_x)
+    measurements['head_alignment'] = (head_forward_distance / width) * 100
+    
+    # Shoulder symmetry
+    left_shoulder_y = landmarks['left_shoulder'][1]
+    right_shoulder_y = landmarks['right_shoulder'][1]
+    shoulder_height_diff = abs(left_shoulder_y - right_shoulder_y)
+    measurements['shoulder_symmetry'] = (shoulder_height_diff / height) * 100
+    
+    # Hip symmetry
+    left_hip_y = landmarks['left_hip'][1]
+    right_hip_y = landmarks['right_hip'][1]
+    hip_height_diff = abs(left_hip_y - right_hip_y)
+    measurements['hip_symmetry'] = (hip_height_diff / height) * 100
+    
+    # Vertical alignment
+    shoulder_center_x = landmarks['shoulder_center'][0]
+    hip_center_x = landmarks['hip_center'][0]
+    vertical_offset = abs(shoulder_center_x - hip_center_x)
+    measurements['vertical_alignment'] = (vertical_offset / width) * 100
+    
+    # Calculate scores based on measurements
+    head_score = calculate_head_score(measurements['head_alignment'])
+    shoulder_score = calculate_shoulder_score(measurements['shoulder_symmetry'])
+    hip_score = calculate_hip_score(measurements['hip_symmetry'])
+    alignment_score = calculate_alignment_score(measurements['vertical_alignment'])
+    
+    # Total score
+    total_score = head_score + shoulder_score + hip_score + alignment_score
+    overall_percentage = (total_score / 16) * 100
+    
+    # Generate analysis results
+    analysis = {
+        'total_score': total_score,
+        'max_score': 16,
+        'percentage': overall_percentage,
+        'head_score': head_score,
+        'shoulder_score': shoulder_score,
+        'hip_score': hip_score,
+        'alignment_score': alignment_score,
+        'landmarks': landmarks,
+        'measurements': measurements
+    }
+    
+    # Add detailed assessments
+    analysis.update(generate_detailed_assessments_with_measurements(analysis))
+    
+    return analysis
     
     elif analysis_mode == "Take Photo (Rectangular View for Side Analysis)":
         st.info("📸 Camera optimized for side-view full-body capture")
