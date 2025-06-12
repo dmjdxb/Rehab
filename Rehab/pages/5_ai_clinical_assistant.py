@@ -801,8 +801,8 @@ with st.sidebar:
     - 🟢 **Green dots:** Excellent alignment (Score 4)
     """)
 
-# Main content
-col1, col2 = st.columns([2, 1])  # Changed from [3, 2] to [2, 1] for better balance
+# Main content - adjust column ratio for better layout
+col1, col2 = st.columns([3, 2])  # Give more space to left column
 
 with col1:
     st.header("📸 Clinical Posture Analysis")
@@ -875,7 +875,25 @@ with col1:
             
             # Create clickable interface
             html_interface = create_clickable_image_interface(image_array)
-            st.components.v1.html(html_interface, height=1400, scrolling=True)  # Increased height and added scrolling
+            st.components.v1.html(html_interface, height=1400, scrolling=True)
+            
+            # Calculate button appears immediately after the image interface
+            st.markdown("---")
+            
+            # Check if landmarks are placed (you might need to handle this via JavaScript callback)
+            calculate_col1, calculate_col2 = st.columns([1, 1])
+            
+            with calculate_col1:
+                if st.button("🔍 Calculate Clinical Analysis", use_container_width=True, type="primary", key="calc_after_landmarks"):
+                    st.info("Please ensure all 9 landmarks are placed on the image above")
+                    # Note: You'll need to implement JavaScript to Streamlit communication
+                    # to know when landmarks are actually placed
+            
+            with calculate_col2:
+                if st.button("🔄 Reset Landmarks", use_container_width=True, key="reset_landmarks"):
+                    st.session_state.manual_landmarks = None
+                    st.session_state.landmarks_placed = False
+                    st.rerun()  # Increased height and added scrolling
             
             # Manual landmark input as backup
             st.markdown("---")
@@ -979,69 +997,102 @@ with col1:
             else:
                 st.info("📍 Click on the image above to place anatomical landmarks, or use the manual coordinate entry below.")
 
-# Display results
+# Display results in the right column
 with col2:
-    # Check if we have an analysis to display from session state
-    if 'current_analysis' in st.session_state and st.session_state.current_analysis is not None:
-        analysis = st.session_state.current_analysis
-        
-        st.header("📊 Clinical Analysis")
-        
-        # Main score
-        score = analysis['percentage']
-        st.metric(
-            "Clinical Posture Score",
-            f"{analysis['total_score']}/16",
-            f"{score:.1f}%"
-        )
-        st.progress(score / 100)
-        
-        # Overall status
-        if analysis['overall_color'] == 'success':
-            st.success(f"✅ {analysis['overall']}")
-        elif analysis['overall_color'] == 'info':
-            st.info(f"ℹ️ {analysis['overall']}")
-        elif analysis['overall_color'] == 'warning':
-            st.warning(f"⚠️ {analysis['overall']}")
-        else:
-            st.error(f"❌ {analysis['overall']}")
-        
-        st.metric("Clinical Risk Level", analysis['risk_level'])
-        
-        # Detailed measurements
-        with st.expander("📏 Clinical Measurements", expanded=True):
-            measurements = analysis['measurements']
-            st.write(f"{analysis['head_color']} **Head Position:** {analysis['head_assessment']}")
-            st.write(f"{analysis['shoulder_color']} **Shoulders:** {analysis['shoulder_assessment']}")
-            st.write(f"{analysis['hip_color']} **Hips:** {analysis['hip_assessment']}")
-            st.write(f"{analysis['alignment_color']} **Alignment:** {analysis['alignment_assessment']}")
+    # Use a container to ensure full width
+    results_container = st.container()
+    
+    with results_container:
+        # Check if we have an analysis to display from session state
+        if 'current_analysis' in st.session_state and st.session_state.current_analysis is not None:
+            analysis = st.session_state.current_analysis
             
-            st.markdown("---")
-            st.markdown("**📊 Raw Measurements:**")
-            st.write(f"• Head forward: {measurements['head_alignment']:.1f}% of width")
-            st.write(f"• Shoulder asymmetry: {measurements['shoulder_symmetry']:.1f}% of height")
-            st.write(f"• Hip asymmetry: {measurements['hip_symmetry']:.1f}% of height")
-            st.write(f"• Vertical misalignment: {measurements['vertical_alignment']:.1f}% offset")
-        
-        # Save button
-        if st.button("💾 Save Clinical Analysis", use_container_width=True, key="save_analysis"):
-            if save_analysis_data(analysis, patient_name):
-                st.success("✅ Clinical analysis saved!")
-                st.balloons()
-        
-        # Exercise recommendations
-        st.subheader("💪 Clinical Exercise Prescription")
-        st.markdown("*Based on quantified postural measurements*")
-        
-        recommendations = generate_exercise_recommendations(analysis)
-        
-        for rec in recommendations:
-            if rec.startswith("**") and rec.endswith("**"):
-                st.markdown(rec)
-            elif rec == "":
-                st.markdown("")
+            st.markdown("## 📊 Clinical Analysis")
+            
+            # Display score in a clear way
+            st.markdown(f"""
+            <div style="text-align: center; padding: 20px; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Clinical Posture Score</h2>
+                <h1 style="margin: 10px 0; font-size: 48px;">{analysis['total_score']}/16</h1>
+                <p style="margin: 0; font-size: 24px; color: #28a745;">↑ {analysis['percentage']:.1f}%</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Progress bar
+            st.progress(analysis['percentage'] / 100)
+            
+            # Overall status
+            if analysis['overall_color'] == 'success':
+                st.success(f"✅ {analysis['overall']}")
+            elif analysis['overall_color'] == 'info':
+                st.info(f"ℹ️ {analysis['overall']}")
+            elif analysis['overall_color'] == 'warning':
+                st.warning(f"⚠️ {analysis['overall']}")
             else:
-                st.markdown(rec)
+                st.error(f"❌ {analysis['overall']}")
+            
+            st.markdown(f"""
+            <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 10px; margin: 20px 0;">
+                <h3 style="margin: 0;">Clinical Risk Level</h3>
+                <h2 style="margin: 10px 0;">{analysis['risk_level']}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Detailed measurements
+            with st.expander("📏 Clinical Measurements", expanded=True):
+                measurements = analysis['measurements']
+                
+                # Create a nice layout for measurements
+                st.markdown(f"""
+                <div style="padding: 10px;">
+                    <p>{analysis['head_color']} <strong>Head Position:</strong> {analysis['head_assessment']}</p>
+                    <p>{analysis['shoulder_color']} <strong>Shoulders:</strong> {analysis['shoulder_assessment']}</p>
+                    <p>{analysis['hip_color']} <strong>Hips:</strong> {analysis['hip_assessment']}</p>
+                    <p>{analysis['alignment_color']} <strong>Alignment:</strong> {analysis['alignment_assessment']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                st.markdown("### 📊 Raw Measurements")
+                
+                # Two column layout for measurements
+                m1, m2 = st.columns(2)
+                with m1:
+                    st.markdown(f"**Head forward:** {measurements['head_alignment']:.1f}%")
+                    st.markdown(f"**Shoulder asymmetry:** {measurements['shoulder_symmetry']:.1f}%")
+                with m2:
+                    st.markdown(f"**Hip asymmetry:** {measurements['hip_symmetry']:.1f}%")
+                    st.markdown(f"**Vertical offset:** {measurements['vertical_alignment']:.1f}%")
+            
+            # Save button
+            st.markdown("---")
+            if st.button("💾 Save Clinical Analysis", use_container_width=True, key="save_main"):
+                if save_analysis_data(analysis, patient_name):
+                    st.success("✅ Clinical analysis saved!")
+                    st.balloons()
+            
+            # Exercise recommendations
+            st.markdown("---")
+            st.subheader("💪 Clinical Exercise Prescription")
+            st.markdown("*Based on quantified postural measurements*")
+            
+            recommendations = generate_exercise_recommendations(analysis)
+            
+            for rec in recommendations:
+                if rec.startswith("**") and rec.endswith("**"):
+                    st.markdown(rec)
+                elif rec == "":
+                    st.markdown("")
+                else:
+                    st.markdown(f"• {rec}")
+        else:
+            # Show placeholder when no analysis
+            st.markdown("""
+            <div style="text-align: center; padding: 50px; background-color: #f8f9fa; border-radius: 10px;">
+                <h3>📊 Clinical Analysis</h3>
+                <p>Results will appear here after analysis</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # Progress tracking
 if len(st.session_state.posture_analyses) > 0:
