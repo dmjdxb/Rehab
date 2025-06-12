@@ -807,10 +807,10 @@ with st.sidebar:
     - 🟢 **Green dots:** Excellent alignment (Score 4)
     """)
 
-# Main content - adjust column ratio for better layout
-col1, col2 = st.columns([3, 2])  # Give more space to left column
+# Main content columns
+col1, col2 = st.columns([3, 2])
 
-# Main content area
+# Left column - Image upload/capture
 with col1:
     st.header("📸 Clinical Posture Analysis")
     
@@ -872,7 +872,8 @@ with col1:
         uploaded_file = st.file_uploader(
             "Upload photo for manual landmark placement",
             type=['jpg', 'jpeg', 'png'],
-            help="Upload a clear side-view photo for precise landmark placement"
+            help="Upload a clear side-view photo for precise landmark placement",
+            key="manual_upload"
         )
         
         if uploaded_file is not None:
@@ -889,66 +890,55 @@ with col1:
             # Calculate button appears immediately after the image interface
             st.markdown("---")
             
-            # Check if landmarks are placed (you might need to handle this via JavaScript callback)
-            calculate_col1, calculate_col2 = st.columns([1, 1])
+            # Info message about using manual coordinates
+            st.info("⚠️ **Note:** The clickable interface is for visualization only. Please use the 'Manual Coordinate Entry' section below to enter the landmark positions you've identified, then click 'Use Manual Coordinates' followed by 'Calculate Clinical Analysis'.")
             
-            with calculate_col1:
-                if st.button("🔍 Calculate Clinical Analysis", use_container_width=True, type="primary", key="calc_after_landmarks"):
-                    st.info("Please ensure all 9 landmarks are placed on the image above")
-                    # Note: You'll need to implement JavaScript to Streamlit communication
-                    # to know when landmarks are actually placed
-            
-            with calculate_col2:
-                if st.button("🔄 Reset Landmarks", use_container_width=True, key="reset_landmarks"):
-                    st.session_state.manual_landmarks = None
-                    st.session_state.landmarks_placed = False
-                    st.rerun()  # Increased height and added scrolling
+            # Reset button
+            if st.button("🔄 Reset View", use_container_width=True, key="reset_view"):
+                st.session_state.manual_landmarks = None
+                st.session_state.landmarks_placed = False
+                st.rerun()
             
             # Manual landmark input as backup
             st.markdown("---")
-            st.markdown("### 🔧 Manual Coordinate Entry (Alternative)")
+            st.markdown("### 🔧 Manual Coordinate Entry")
+            st.warning("📝 **Required:** After clicking landmarks above, enter their coordinates here to proceed with analysis")
             
-            # Use a container instead of expander to avoid nesting
-            manual_entry = st.container()
+            st.info("Enter coordinates manually if clicking doesn't work")
+            coords_col1, coords_col2, coords_col3 = st.columns(3)
             
-            with manual_entry:
-                st.info("Enter coordinates manually if clicking doesn't work")
-                col1, col2, col3 = st.columns(3)
-                
-                manual_coords = {}
-                landmarks_list = [
-                    ('skull', 'Skull/Head'),
-                    ('left_shoulder', 'Left Shoulder'),
-                    ('right_shoulder', 'Right Shoulder'),
-                    ('left_hip', 'Left Hip'),
-                    ('right_hip', 'Right Hip'),
-                    ('left_knee', 'Left Knee'),
-                    ('right_knee', 'Right Knee'),
-                    ('left_ankle', 'Left Ankle'),
-                    ('right_ankle', 'Right Ankle')
+            manual_coords = {}
+            landmarks_list = [
+                ('skull', 'Skull/Head'),
+                ('left_shoulder', 'Left Shoulder'),
+                ('right_shoulder', 'Right Shoulder'),
+                ('left_hip', 'Left Hip'),
+                ('right_hip', 'Right Hip'),
+                ('left_knee', 'Left Knee'),
+                ('right_knee', 'Right Knee'),
+                ('left_ankle', 'Left Ankle'),
+                ('right_ankle', 'Right Ankle')
+            ]
+            
+            for i, (key, label) in enumerate(landmarks_list):
+                col = [coords_col1, coords_col2, coords_col3][i % 3]
+                with col:
+                    st.write(f"**{label}**")
+                    x = st.number_input(f"X", key=f"{key}_x", min_value=0, max_value=image_array.shape[1])
+                    y = st.number_input(f"Y", key=f"{key}_y", min_value=0, max_value=image_array.shape[0])
+                    manual_coords[key] = (int(x), int(y))
+            
+            if st.button("📍 Use Manual Coordinates", use_container_width=True):
+                st.session_state.manual_landmarks = [
+                    {'name': key, 'x': coords[0], 'y': coords[1]} 
+                    for key, coords in manual_coords.items()
                 ]
-                
-                for i, (key, label) in enumerate(landmarks_list):
-                    col = [col1, col2, col3][i % 3]
-                    with col:
-                        st.write(f"**{label}**")
-                        x = st.number_input(f"X", key=f"{key}_x", min_value=0, max_value=image_array.shape[1])
-                        y = st.number_input(f"Y", key=f"{key}_y", min_value=0, max_value=image_array.shape[0])
-                        manual_coords[key] = (int(x), int(y))
-                
-                if st.button("📍 Use Manual Coordinates"):
-                    st.session_state.manual_landmarks = [
-                        {'name': key, 'x': coords[0], 'y': coords[1]} 
-                        for key, coords in manual_coords.items()
-                    ]
-                    st.session_state.landmarks_placed = True
-                    st.success("✅ Manual coordinates saved!")
+                st.session_state.landmarks_placed = True
+                st.success("✅ Manual coordinates saved!")
             
             # Calculate button and results
             if st.session_state.landmarks_placed or st.session_state.manual_landmarks:
-                st.markdown("---")
-                
-                if st.button("🔍 Calculate Clinical Analysis", use_container_width=True, type="primary"):
+                if st.button("🔍 Calculate Clinical Analysis", use_container_width=True, type="primary", key="calc_manual"):
                     if st.session_state.manual_landmarks:
                         # Process manual landmarks
                         with st.spinner("🔍 Calculating clinical measurements from manual landmarks..."):
@@ -982,6 +972,9 @@ with col1:
                             
                             # Add assessments
                             analysis.update(generate_detailed_assessments(analysis))
+                            
+                            # Store analysis for display
+                            st.session_state.current_analysis = analysis
                         
                         # Create annotated image
                         annotated_image = create_annotated_image(image_array, landmarks, analysis)
@@ -996,17 +989,10 @@ with col1:
                             st.image(image, caption="📷 Original Photo", use_container_width=True)
                         with img_col2:
                             st.image(annotated_image, caption="🎯 Manual Landmark Analysis", use_container_width=True)
-                        
-                        # Store analysis for display in sidebar
-                        st.session_state.current_analysis = analysis
-                    
                     else:
                         st.warning("⚠️ Please place all 9 landmarks before calculating.")
-            
-            else:
-                st.info("📍 Click on the image above to place anatomical landmarks, or use the manual coordinate entry below.")
 
-# Display results in the right column
+# Right column - Analysis results
 with col2:
     # Check if we have an analysis to display from session state
     if 'current_analysis' in st.session_state and st.session_state.current_analysis is not None:
@@ -1099,9 +1085,10 @@ with col2:
         </div>
         """, unsafe_allow_html=True)
 
-# Progress tracking
+# Progress tracking section - outside of columns
+st.markdown("---")
+
 if len(st.session_state.posture_analyses) > 0:
-    st.markdown("---")
     st.header("📈 Clinical Progress Tracking")
     
     analyses = st.session_state.posture_analyses
