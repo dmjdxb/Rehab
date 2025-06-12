@@ -118,16 +118,20 @@ def get_rehab_phase(injury_type, peak_force, lsi, rfd, pain_score):
 def get_exercise_recommendations(injury_type, phase):
     """
     Get exercise recommendations based on injury and phase
+    Now pulls actual exercises from the database
     
     Args:
         injury_type (str): Type of injury
         phase (str): Current rehabilitation phase
     
     Returns:
-        list: Recommended exercise types for the phase
+        dict: Contains recommendations and actual exercises from database
     """
+    import pandas as pd
+    import os
     
-    recommendations = {
+    # General recommendations by phase
+    general_recommendations = {
         "Early": {
             "focus": ["Pain management", "Range of motion", "Basic strengthening"],
             "exercise_types": ["Mobility", "Isometric", "Light Strength"],
@@ -150,4 +154,71 @@ def get_exercise_recommendations(injury_type, phase):
         }
     }
     
-    return recommendations.get(phase, recommendations["Early"])
+    # Get general recommendations
+    recommendations = general_recommendations.get(phase, general_recommendations["Early"])
+    
+    # Try to load exercise database and get specific exercises
+    try:
+        csv_path = "exercise_index_master.csv"
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            
+            # Filter exercises for this injury and phase
+            specific_exercises = df[
+                (df['Injury'] == injury_type) & 
+                (df['Phase'] == phase)
+            ].copy()
+            
+            # If no specific exercises for this injury, get exercises for this phase from similar injuries
+            if len(specific_exercises) == 0:
+                specific_exercises = df[df['Phase'] == phase].copy()
+            
+            # If still no exercises, get any exercises for this injury
+            if len(specific_exercises) == 0:
+                specific_exercises = df[df['Injury'] == injury_type].copy()
+            
+            # Sort by exercise type priority for this phase
+            recommended_types = recommendations["exercise_types"]
+            specific_exercises['priority'] = specific_exercises['Type'].apply(
+                lambda x: recommended_types.index(x) if x in recommended_types else len(recommended_types)
+            )
+            specific_exercises = specific_exercises.sort_values('priority').head(6)  # Top 6 exercises
+            
+            # Add specific exercises to recommendations
+            recommendations["specific_exercises"] = specific_exercises[
+                ['Exercise', 'Type', 'Goal', 'Equipment', 'Progression', 'Evidence', 'VideoURL']
+            ].to_dict('records')
+            
+        else:
+            recommendations["specific_exercises"] = []
+            
+    except Exception as e:
+        print(f"Error loading exercise database: {e}")
+        recommendations["specific_exercises"] = []
+    
+    return recommendations
+
+def get_all_exercises_for_injury_phase(injury_type, phase):
+    """
+    Get all exercises for a specific injury and phase
+    """
+    import pandas as pd
+    import os
+    
+    try:
+        csv_path = "exercise_index_master.csv"
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            
+            # Filter exercises
+            exercises = df[
+                (df['Injury'] == injury_type) & 
+                (df['Phase'] == phase)
+            ].copy()
+            
+            return exercises
+        else:
+            return pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
+
