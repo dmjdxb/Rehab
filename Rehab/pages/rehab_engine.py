@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 from rehab_engine import get_rehab_phase, get_exercise_recommendations
 
-st.set_page_config(page_title="Rehab Engine", layout="centered")
 
 st.title("🦿 Rehab Progression Engine")
 st.markdown("""
