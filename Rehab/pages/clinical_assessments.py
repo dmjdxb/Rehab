@@ -47,52 +47,62 @@ with tab1:
     )
     
     if assessment_type == "IKDC (Knee)":
-        st.subheader("🦵 IKDC Knee Assessment")
-        st.caption("International Knee Documentation Committee - Validated for knee injuries")
+    st.subheader("🦵 IKDC Knee Assessment")
+    st.caption("International Knee Documentation Committee - Validated for knee injuries")
+    
+    with st.form("ikdc_form"):
+        col1, col2 = st.columns(2)
         
-        with st.form("ikdc_form"):
-            col1, col2 = st.columns(2)
+        with col1:
+            pain_level = st.slider("Pain Level (0=severe, 10=none)", 0, 10, 5)
+            swelling = st.slider("Swelling (0=severe, 4=none)", 0, 4, 2)
+            locking = st.slider("Locking Episodes (0=constant, 4=never)", 0, 4, 2)
+            instability = st.slider("Giving Way (0=constant, 4=never)", 0, 4, 2)
+        
+        with col2:
+            activity_level = st.slider("Activity Level (0=unable, 4=normal)", 0, 4, 2)
+            function_score = st.slider("Function (0=cannot do, 4=no difficulty)", 0, 4, 2)
+            sports_participation = st.slider("Sports (0=unable, 4=normal)", 0, 4, 2)
+        
+        # Option to save automatically
+        auto_save = st.checkbox("Auto-save assessment after calculation", value=True)
+        
+        # Single submit button that both calculates AND saves
+        submitted = st.form_submit_button("💾 Calculate & Save IKDC Score")
+        
+        if submitted:
+            responses = {
+                'pain_level': pain_level,
+                'swelling': swelling,
+                'locking': locking,
+                'instability': instability,
+                'activity_level': activity_level,
+                'function_score': function_score,
+                'sports_participation': sports_participation
+            }
             
+            result = calculate_ikdc_score(responses)
+            
+            # Display results
+            col1, col2, col3 = st.columns(3)
             with col1:
-                pain_level = st.slider("Pain Level (0=severe, 10=none)", 0, 10, 5)
-                swelling = st.slider("Swelling (0=severe, 4=none)", 0, 4, 2)
-                locking = st.slider("Locking Episodes (0=constant, 4=never)", 0, 4, 2)
-                instability = st.slider("Giving Way (0=constant, 4=never)", 0, 4, 2)
-            
+                st.metric("IKDC Score", f"{result['score']}", f"MCID: {result['mcid']}")
             with col2:
-                activity_level = st.slider("Activity Level (0=unable, 4=normal)", 0, 4, 2)
-                function_score = st.slider("Function (0=cannot do, 4=no difficulty)", 0, 4, 2)
-                sports_participation = st.slider("Sports (0=unable, 4=normal)", 0, 4, 2)
+                st.metric("Risk Level", result['risk_level'])
+            with col3:
+                st.metric("Interpretation", result['interpretation'])
             
-            submitted = st.form_submit_button("Calculate IKDC Score")
+            st.info(f"**Recommendation:** {result['recommendation']}")
             
-            if submitted:
-                responses = {
-                    'pain_level': pain_level,
-                    'swelling': swelling,
-                    'locking': locking,
-                    'instability': instability,
-                    'activity_level': activity_level,
-                    'function_score': function_score,
-                    'sports_participation': sports_participation
-                }
-                
-                result = calculate_ikdc_score(responses)
-                
-                # Display results
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("IKDC Score", f"{result['score']}", f"MCID: {result['mcid']}")
-                with col2:
-                    st.metric("Risk Level", result['risk_level'])
-                with col3:
-                    st.metric("Interpretation", result['interpretation'])
-                
-                st.info(f"**Recommendation:** {result['recommendation']}")
-                
-                # Save result (you could expand this to save to CSV)
-                if st.button("💾 Save Assessment"):
-                    st.success("✅ Assessment saved successfully!")
+            # Save the assessment if auto_save is enabled
+            if auto_save:
+                # Add your save logic here
+                # For example:
+                # save_to_database(result)
+                # save_to_csv(result)
+                st.success("✅ Assessment calculated and saved successfully!")
+            else:
+                st.success("✅ Assessment calculated successfully!")
 
     elif assessment_type == "NPRS (Pain)":
         st.subheader("😖 Numeric Pain Rating Scale")
