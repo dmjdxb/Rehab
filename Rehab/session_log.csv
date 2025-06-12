@@ -1,0 +1,10 @@
+Date,Time,Athlete,Injury,Phase,Peak Force,Left Limb,Right Limb,Symmetry Index,RFD,Pain Score,Notes
+2024-05-15,10:00,John Smith,ACL,Early,850,400,500,80.0,65.0,3,First assessment post-surgery
+2024-05-22,14:30,John Smith,ACL,Early,920,450,520,86.5,72.0,2,Good improvement in strength
+2024-05-29,11:15,John Smith,ACL,Mid,1050,485,535,90.7,78.0,1,Progressed to mid phase
+2024-06-01,09:30,Sarah Johnson,Achilles,Mid,780,420,440,95.5,68.0,2,Eccentric strengthening focus
+2024-06-03,15:45,Sarah Johnson,Achilles,Mid,825,445,455,97.8,75.0,1,Excellent progress
+2024-06-05,10:20,Mike Davis,Hamstring,Late,1200,580,600,96.7,85.0,0,Ready for plyometrics
+2024-06-08,13:00,Mike Davis,Hamstring,Return to Sport,1280,625,635,98.4,92.0,0,Cleared for sport return
+2024-06-10,16:15,Emma Wilson,Rotator Cuff,Early,650,280,350,80.0,55.0,4,Post-surgical 6 weeks
+2024-06-12,08:45,Emma Wilson,Rotator Cuff,Early,720,310,360,86.1,62.0,3,Range of motion improving
