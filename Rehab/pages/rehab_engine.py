@@ -230,11 +230,15 @@ if st.button("📈 Calculate Rehab Phase", use_container_width=True):
                             
                             with col2:
                                 st.markdown("**📹 Exercise Video:**")
-                                if embed_youtube_video(exercise['VideoURL'], height=250):
-                                    st.success("✅ Video loaded successfully")
+                                if exercise['VideoURL'] and isinstance(exercise['VideoURL'], str) and exercise['VideoURL'].strip():
+                                    if embed_youtube_video(exercise['VideoURL'], height=250):
+                                        st.caption("🎥 Video demonstration")
+                                    else:
+                                        st.warning("⚠️ Video cannot be embedded")
+                                        st.markdown(f"**[🎥 Watch on YouTube]({exercise['VideoURL']})**")
+                                        st.caption("Some videos cannot be embedded due to YouTube restrictions")
                                 else:
-                                    st.error("❌ Could not load video")
-                                    st.markdown(f"[🎥 Watch on YouTube]({exercise['VideoURL']})")
+                                    st.info("No video available for this exercise")
                 
                 # Show exercises without videos
                 if exercises_without_videos:
