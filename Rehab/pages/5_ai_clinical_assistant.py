@@ -22,6 +22,12 @@ if 'landmarks_placed' not in st.session_state:
     st.session_state.landmarks_placed = False
 if 'current_analysis' not in st.session_state:
     st.session_state.current_analysis = None
+if 'annotated_image' not in st.session_state:
+    st.session_state.annotated_image = None
+if 'original_image' not in st.session_state:
+    st.session_state.original_image = None
+if 'current_view' not in st.session_state:
+    st.session_state.current_view = None
 
 def detect_body_region(image_array):
     """Detect the actual body region, excluding shadows and background"""
