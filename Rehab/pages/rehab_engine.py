@@ -199,8 +199,8 @@ if st.button("📈 Calculate Rehab Phase", use_container_width=True):
                 st.subheader("🎯 Recommended Exercises")
                 
                 # Create tabs for exercises with videos
-                exercises_with_videos = [ex for ex in recommendations["specific_exercises"] if ex.get('VideoURL') and ex['VideoURL'].strip()]
-                exercises_without_videos = [ex for ex in recommendations["specific_exercises"] if not (ex.get('VideoURL') and ex['VideoURL'].strip())]
+                exercises_with_videos = [ex for ex in recommendations["specific_exercises"] if ex.get('VideoURL') and isinstance(ex['VideoURL'], str) and ex['VideoURL'].strip()]
+                exercises_without_videos = [ex for ex in recommendations["specific_exercises"] if not (ex.get('VideoURL') and isinstance(ex['VideoURL'], str) and ex['VideoURL'].strip())]
                 
                 if exercises_with_videos:
                     st.markdown("### 📹 Video Demonstrations")
